@@ -50,4 +50,42 @@ module System
       raise "Can't address locations in base MemoryArea class"
     end
   end
+
+  class RAM < MemoryArea
+    def initialize(start: 0, size: 0)
+      super(start: start, size: size)
+      @storage = Array.new(size)
+    end
+
+    def [](index)
+      raise 'Out of bounds access' if index < start or index >= start + size
+      @storage[index - start]
+    end
+
+    def []=(index, value)
+      raise 'Out of bounds access' if index < start or index >= start + size
+      raise 'Memory can only store 8 bit postive values' if value < 0 or value > 255
+      @storage[index - start] = value
+    end
+  end
+
+  class Screen < MemoryArea
+    def initialize(start: 500, cols: 15, rows: 8)
+      super(start: start, size: cols * rows)
+      @cols = cols
+      @rows = rows
+      UI.init_ui
+      @cn = UI::Console.new(cols: cols, rows: rows)
+    end
+
+    def []=(index,value)
+      raise 'Out of bounds access' if index < start or index >= start + size
+      raise 'Screen can only accept 8 bit postive characters' if value < 0 or value > 255
+
+      col = (index - start) % @cols
+      row = (index - start) / @cols
+
+      @cn.set_ch(value.chr, col, row)
+    end
+  end
 end
