@@ -30,6 +30,12 @@ module System
     def initialize(start: 0, size: 0)
       @start = start
       @size = size
+      System.memory_map.each do |ma|
+        if System::memory_area_overlaps?(self, ma)
+          raise "Can't create MemoryArea that overlaps with another"
+        end
+      end
+      System.memory_map << self
     end
 
     def last
