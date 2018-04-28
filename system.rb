@@ -45,5 +45,9 @@ module System
     def []
       raise "Can't address locations in base MemoryArea class"
     end
+
+    def []=
+      raise "Can't address locations in base MemoryArea class"
+    end
   end
 end
