@@ -1,8 +1,14 @@
+require './ui'
+
 module System
   STEP_SECONDS = 1.0
 
-  attr_reader: memory_map
-  @@memory_map = [] # Array of MemoryAreas
+  class << self
+    attr_accessor :memory_map
+  end
+
+  @memory_map = [] # Array of MemoryAreas
+
 
   def System::memory_area_overlaps?(memory_area1, memory_area2)
     if memory_area1.start >= memory_area2.start and memory_area1.start <= memory_area2.last
