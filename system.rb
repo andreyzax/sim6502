@@ -118,4 +118,32 @@ module System
       @cn.set_ch(value.chr, col, row)
     end
   end
+
+  class CPU
+    def initialize(memory)
+
+      @mem = memory
+
+      # Init registers
+      @A = 0 # Accumulator
+      # Index registers
+      @X = 0
+      @Y = 0
+      # Stack pointer
+      @S = 0x1ff # Start of stack on a 6502
+      @P = 0 # Processor status word (should this be zero?)
+      @IP = 0 # Instruction pointer
+      @CURRENT_OPCODE = 0 # Currently executing instruction
+    end
+
+    def validate_register_value(n)
+      raise "Invalid value #{n}, registers can only contain integer numbers" unless n.is_a? Integer
+      raise "Invalid value #{n}, registers can only contain numbers between 0 to 255 inclusive" if n > 255 or n < 0
+    end
+
+    def step
+      @CURRENT_OPCODE = mem[@IP]
+      sleep STEP_SECONDS
+    end
+  end
 end
