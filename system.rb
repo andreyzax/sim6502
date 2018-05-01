@@ -9,7 +9,6 @@ module System
 
   @memory_map = [] # Array of MemoryAreas
 
-
   def System::memory_area_overlaps?(memory_area1, memory_area2)
     if memory_area1.start >= memory_area2.start and memory_area1.start <= memory_area2.last
       return true
@@ -50,6 +49,37 @@ module System
       raise "Can't address locations in base MemoryArea class"
     end
   end
+
+  class Memory
+    def initialize
+      @@count ||= 0 # initialize if not alredy set
+      @@count += 1
+      raise 'Only one Memory object is allowed to exist' if @@count > 1
+
+      @memory_map = System::memory_map
+    end
+
+    def [](index)
+      @memory_map.each do |ma|
+        if index >= ma.start and index <= ma.last
+          return ma[index]
+        end
+      end
+
+      raise 'Unmapped location'
+    end
+
+    def []=(index, value)
+      @memory_map.each do |ma|
+        if index >= ma.start and index <= ma.last
+          return ma[index] = value
+        end
+      end
+
+      raise 'Unmapped location'
+    end
+  end
+
 
   class RAM < MemoryArea
     def initialize(start: 0, size: 0)
