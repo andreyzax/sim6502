@@ -107,7 +107,7 @@ class Instruction:
                 if self.operand > 2**16 - 1:
                     raise EncodingError("Operand is to big for this instruction", self)
 
-                return bytes((opcode, self.operand >> 8, self.operand & 0x00FF))
+                return bytes((opcode, self.operand & 0x00FF, self.operand >> 8))
 
             case _:
                 if self.operand is None:
