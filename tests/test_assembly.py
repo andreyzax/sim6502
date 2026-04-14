@@ -5,6 +5,15 @@ from typing import Any, NamedTuple
 from assembly import Instruction, Operation, AddressMode, EncodingError
 
 
+def validate_encoding(instruction, encoding):
+    assert instruction.machine_code.hex() == encoding.hex(), f"Test instruction: {instruction}"
+
+
+def validate_encoding_exception(instruction, expectation):
+    with expectation:
+        instruction.machine_code
+
+
 class Item(NamedTuple):
     instruction: Instruction
     expected: Any
@@ -30,7 +39,7 @@ test_matrix = [
     ids=[item.instruction.operation.name for item in test_matrix],
 )
 def test_implicit_instruction_decoding(input, expected):
-    assert input.machine_code.hex() == expected.hex(), f"Test instruction: {input}"
+    validate_encoding(input, expected)
 
 
 test_matrix = [
