@@ -76,3 +76,52 @@ test_matrix = [
 def test_invalid_implicit_instructions(input, expectation):
     with expectation:
         input.machine_code
+
+
+test_matrix = [
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.Immediate, operand=0x2A), b"\x69\x2a"),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.ZeroPage, operand=0x2A), b"\x65\x2a"),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.ZeroPageX, operand=0x2A), b"\x75\x2a"),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.Absolute, operand=0x2A), b"\x6d\x2a\x00"),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.AbsoluteX, operand=0x2A), b"\x7d\x2a\x00"),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.AbsoluteY, operand=0x2A), b"\x79\x2a\x00"),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.IndirectX, operand=0x2A), b"\x61\x2a"),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.IndirectY, operand=0x2A), b"\x71\x2a"),
+]
+
+
+@pytest.mark.parametrize(
+    "input,expected",
+    test_matrix,
+    ids=[f"{item.instruction.operation.name}_{item.instruction.mode.name}" for item in test_matrix],
+)
+def test_adc_encoding(input, expected):
+    validate_encoding(input, expected)
+
+
+test_matrix = [
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.Implicit, operand=None), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.Implicit, operand=0x0), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.Implicit, operand=0xFEFF), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.Immediate, operand=0x2A2A), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.ZeroPage, operand=0x2A2A), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.ZeroPageX, operand=0x2A2A), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.ZeroPageY, operand=0x2A), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.Absolute, operand=0xFFFFF), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.AbsoluteX, operand=0x2A2A2A), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.AbsoluteY, operand=0x3C3C3C), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.Indirect, operand=0x2A2A), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.IndirectX, operand=0x2A2A), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.IndirectY, operand=0x2A2A), pytest.raises(EncodingError)),
+    Item(Instruction(op=Operation.ADC, mode=AddressMode.Relative, operand=0x2A), pytest.raises(EncodingError)),
+]
+
+
+@pytest.mark.parametrize(
+    "input,expectation",
+    test_matrix,
+    ids=[item.instruction.operation.name for item in test_matrix],
+)
+def test_invalid_adc_instructions(input, expectation):
+    with expectation:
+        input.machine_code
