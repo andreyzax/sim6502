@@ -23,31 +23,31 @@ class EncodingError(Exception):
 class Operation(Enum):
     """An enum to represent all 6502 assembly mnemonics."""
 
-    ADC = auto()
-    BEQ = auto()
-    BNE = auto()
-    BRK = auto()
-    CLC = auto()
-    CMP = auto()
-    DEC = auto()
-    DEX = auto()
-    DEY = auto()
-    INC = auto()
-    INX = auto()
-    INY = auto()
-    JMP = auto()
-    LDA = auto()
-    LDX = auto()
-    LDY = auto()
-    NOP = auto()
-    PHA = auto()
-    PLA = auto()
-    SBC = auto()
-    SEC = auto()
-    STA = auto()
-    STX = auto()
-    STY = auto()
-    JSR = auto()
+    ADC = auto()  # - Tested
+    BEQ = auto()  #
+    BNE = auto()  #
+    BRK = auto()  #
+    CLC = auto()  #
+    CMP = auto()  #
+    DEC = auto()  #
+    DEX = auto()  #
+    DEY = auto()  #
+    INC = auto()  #
+    INX = auto()  #
+    INY = auto()  #
+    JMP = auto()  #
+    JSR = auto()  #
+    LDA = auto()  #
+    LDX = auto()  #
+    LDY = auto()  #
+    NOP = auto()  #
+    PHA = auto()  #
+    PLA = auto()  #
+    SBC = auto()  #
+    SEC = auto()  #
+    STA = auto()  #
+    STX = auto()  #
+    STY = auto()  #
 
 
 class AddressMode(Enum):
