@@ -149,6 +149,17 @@ class Instruction:
         """Implement derived opcode property."""
         return self._encode()[0]
 
+    def __eq__(self, other) -> bool:
+        """
+        Define equality for this class.
+
+        Simple attribute-wise comparison. Don't bother with derived attributes.
+        """
+        if not isinstance(other, Instruction):
+            return NotImplemented
+
+        return (self.operation == other.operation) and (self.mode == other.mode) and (self.operand == other.operand)
+
     def __repr__(self) -> str:
         """Provide human readable debug representation."""
         return f"Instruction(op={self.operation}, mode={self.mode}, operand={self.operand})"
