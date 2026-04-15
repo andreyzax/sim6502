@@ -47,6 +47,7 @@ class Operation(Enum):
     STA = auto()
     STX = auto()
     STY = auto()
+    JSR = auto()
 
 
 class AddressMode(Enum):
@@ -163,6 +164,7 @@ class _ISA:
         self.opcode_map = {
             0x00: _ISA_entry(Operation.BRK, AddressMode.Implicit),
             0x18: _ISA_entry(Operation.CLC, AddressMode.Implicit),
+            0x20: _ISA_entry(Operation.JSR, AddressMode.Absolute),
             0x38: _ISA_entry(Operation.SEC, AddressMode.Implicit),
             0x48: _ISA_entry(Operation.PHA, AddressMode.Implicit),
             0x4C: _ISA_entry(Operation.JMP, AddressMode.Absolute),
