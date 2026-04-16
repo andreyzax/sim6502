@@ -16,15 +16,15 @@ The long-term goal is to support:
 
 ## Current State
 
-- Project scaffold created
+- All **documented** 6502 opcodes implemented
 
 ## Goals
 
 - [ ] Implement core CPU registers and flags
-- [ ] Add instruction decoding
+- [x] Add instruction decoding
 - [ ] Implement addressing modes
-- [ ] Support full instruction set
-- [ ] Add test suite (possibly using known 6502 test ROMs)
+- [ ] Support full instruction set - (Documented opcodes only for now)
+- [x] Add test suite
 - [ ] Basic CLI or debugging interface
 - [ ] Interactive TUI
 
