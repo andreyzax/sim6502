@@ -1482,3 +1482,23 @@ test_matrix = [
 )
 def test_invalid_ror_instructions(input, expectation):
     validate_encoding_exception(input, expectation)
+
+
+def test_instruction_attribute_caching():
+    ins = Instruction(op=Operation.ADC, mode=AddressMode.Absolute, operand=0x5F4F)
+    assert ins.opcode == 0x6D
+    assert ins.machine_code == b"\x6d\x4f\x5f"
+    assert ins.size == 3
+
+    ins.mode = AddressMode.Immediate
+    ins.operand = 0xAB
+    assert ins.opcode == 0x69
+    assert ins.machine_code == b"\x69\xab"
+    assert ins.size == 2
+
+    ins.operation = Operation.SEC
+    ins.mode = AddressMode.Implicit
+    ins.operand = None
+    assert ins.opcode == 0x38
+    assert ins.machine_code == b"\x38"
+    assert ins.size == 1

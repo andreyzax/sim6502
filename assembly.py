@@ -8,6 +8,7 @@ Classes:
 """
 
 from enum import Enum, auto
+from functools import cached_property
 from typing import NamedTuple
 
 
@@ -120,9 +121,9 @@ class Instruction:
 
     def __init__(self, op: Operation, mode: AddressMode, operand: int | None = None):
         """Initialize the passed in attributes and then the derived attributes."""
-        self.operation = op
-        self.mode = mode
-        self.operand = operand
+        self._operation = op
+        self._mode = mode
+        self._operand = operand
 
     def _encode(self) -> bytes:
         try:
@@ -175,16 +176,58 @@ class Instruction:
         return Instruction(op=isa_entry.operation, mode=isa_entry.mode, operand=operand)
 
     @property
+    def operation(self) -> Operation:
+        """Get operation attribute."""
+        return self._operation
+
+    @property
+    def mode(self) -> AddressMode:
+        """Get mode attribute."""
+        return self._mode
+
+    @property
+    def operand(self) -> int | None:
+        """Get operand attribute."""
+        return self._operand
+
+    @operation.setter
+    def operation(self, value: Operation) -> None:
+        """Set operation attribute."""
+        self._operation = value
+
+        self.__dict__.pop("machine_code", None)
+        self.__dict__.pop("size", None)
+        self.__dict__.pop("opcode", None)
+
+    @mode.setter
+    def mode(self, value: AddressMode) -> None:
+        """Set mode attribute."""
+        self._mode = value
+
+        self.__dict__.pop("machine_code", None)
+        self.__dict__.pop("size", None)
+        self.__dict__.pop("opcode", None)
+
+    @operand.setter
+    def operand(self, value: int | None) -> None:
+        """Set operand attribute."""
+        self._operand = value
+
+        self.__dict__.pop("machine_code", None)
+        self.__dict__.pop("size", None)
+        self.__dict__.pop("opcode", None)
+
+    @cached_property
     def machine_code(self) -> bytes:
         """Implement derived machine_code property."""
         return self._encode()
 
-    @property
+    @cached_property
     def size(self) -> int:
         """Implement derived size property."""
         return len(self._encode())
 
-    @property
+    @cached_property
     def opcode(self) -> int:
         """Implement derived opcode property."""
         return self._encode()[0]
