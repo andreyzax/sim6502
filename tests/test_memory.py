@@ -75,7 +75,7 @@ def test_ram_segment(simple_memory_map: MemoryMap):
         assert mem_seg[0xFF] == 0x42
 
 
-def test_simple_memory_map_access(simple_memory_map):
+def test_simple_memory_map_access(simple_memory_map: MemoryMap):
     mm = simple_memory_map
 
     mm[0] = 0xFF
@@ -85,6 +85,26 @@ def test_simple_memory_map_access(simple_memory_map):
     assert mm[0xEC] == 0x42
 
     assert mm[0x0A00] == 0xFF
+
+    mm[0x0000] = 1
+    mm[0x0100] = 2
+    mm[0x0200] = 3
+    mm[0x0300] = 4
+    mm[0x0500] = 5
+    mm[0x0600] = 6
+    mm[0x0700] = 7
+    mm[0x0800] = 8
+    mm[0x0900] = 9
+    if isinstance(mm._memory_map[0], RamSegment):
+        assert mm._memory_map[0]._backing_store[0] == 1
+        assert mm._memory_map[0]._backing_store[0x100] == 2
+        assert mm._memory_map[0]._backing_store[0x200] == 3
+        assert mm._memory_map[0]._backing_store[0x300] == 4
+        assert mm._memory_map[0]._backing_store[0x500] == 5
+        assert mm._memory_map[0]._backing_store[0x600] == 6
+        assert mm._memory_map[0]._backing_store[0x700] == 7
+        assert mm._memory_map[0]._backing_store[0x800] == 8
+        assert mm._memory_map[0]._backing_store[0x900] == 9
 
     assert mm[0x0CEF] == 0xFF
     mm[0x0CEF] = 0x00
