@@ -21,6 +21,7 @@ The long-term goal is to support:
 ## Goals
 
 - [ ] Implement core CPU registers and flags
+- [x] Implement emulated ram and system memory map
 - [x] Add instruction decoding
 - [ ] Implement addressing modes
 - [ ] Support full instruction set - (Documented opcodes only for now)
