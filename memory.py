@@ -2,8 +2,9 @@
 This module defines the memory class used as system memory for our emulated computer.
 
 Classes:
-    MemorySegment - A contiguous region of memory
     MemoryMap - Models the system's memory map
+    MemorySegment - A contiguous region of memory
+    RamSegment - A ram memory area
 """
 
 from abc import ABC, abstractmethod
