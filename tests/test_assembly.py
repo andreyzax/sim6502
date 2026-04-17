@@ -1,6 +1,5 @@
 import pytest
 
-from contextlib import nullcontext
 from typing import Any, NamedTuple
 from assembly import Instruction, Operation, AddressMode, EncodingError
 
