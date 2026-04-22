@@ -304,6 +304,7 @@ def test_stack_instructions(system: CPU):
     cpu.execute_instruction(ins)
     assert (cpu.pc - initial_pc) == ins.size
     assert cpu.x == 0xFF
+
     ins = Instruction(op=Operation.PHA, mode=AddressMode.Implicit)
     initial_pc = cpu.pc
     cpu.a = 0x42
@@ -312,6 +313,7 @@ def test_stack_instructions(system: CPU):
     assert (cpu.pc - initial_pc) == ins.size
     assert cpu.s == 0xFE
     assert cpu.memory[0x100 + cpu.s + 1] == 0x42
+
     ins = Instruction(op=Operation.PLA, mode=AddressMode.Implicit)
     initial_pc = cpu.pc
     cpu.a = 0
@@ -319,6 +321,7 @@ def test_stack_instructions(system: CPU):
     assert (cpu.pc - initial_pc) == ins.size
     assert cpu.s == 0xFF
     assert cpu.a == 0x42
+
     ins = Instruction(op=Operation.PHP, mode=AddressMode.Implicit)
     initial_pc = cpu.pc
     cpu.p._set_flags(0b1011_1101)
@@ -327,6 +330,7 @@ def test_stack_instructions(system: CPU):
     assert (cpu.pc - initial_pc) == ins.size
     assert cpu.s == 0xFE
     assert cpu.memory[0x100 + cpu.s + 1] == 0b1011_1101  # PHP sets the virtual "b" flag aka bit 4
+
     ins = Instruction(op=Operation.PLP, mode=AddressMode.Implicit)
     initial_pc = cpu.pc
     cpu.execute_instruction(ins)
@@ -1215,3 +1219,382 @@ def test_bit_shift_instructions(system: CPU):
     assert not cpu.p.carry
     assert not cpu.p.zero
     assert cpu.p.negative
+
+
+def test_bitwise_instructions(system: CPU):
+    cpu = system
+
+    ins = Instruction(op=Operation.AND, mode=AddressMode.Immediate, operand=0x1)
+    initial_pc = cpu.pc
+    cpu.a = 0x1
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x01
+    assert not cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.AND, mode=AddressMode.Immediate, operand=0x0)
+    initial_pc = cpu.pc
+    cpu.a = 0x0
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x0
+    assert cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.AND, mode=AddressMode.Immediate, operand=0x1)
+    initial_pc = cpu.pc
+    cpu.a = 0x0
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x0
+    assert cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.AND, mode=AddressMode.Immediate, operand=0x0)
+    initial_pc = cpu.pc
+    cpu.a = 0x1
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x0
+    assert cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.AND, mode=AddressMode.Immediate, operand=0xF)
+    initial_pc = cpu.pc
+    cpu.a = 0xF0
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x00
+    assert cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.AND, mode=AddressMode.Immediate, operand=0xF0)
+    initial_pc = cpu.pc
+    cpu.a = 0xFF
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0xF0
+    assert not cpu.p.zero
+    assert cpu.p.negative
+
+    ins = Instruction(op=Operation.ORA, mode=AddressMode.Immediate, operand=0x1)
+    initial_pc = cpu.pc
+    cpu.a = 0x1
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x01
+    assert not cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.ORA, mode=AddressMode.Immediate, operand=0x0)
+    initial_pc = cpu.pc
+    cpu.a = 0x0
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x0
+    assert cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.ORA, mode=AddressMode.Immediate, operand=0x1)
+    initial_pc = cpu.pc
+    cpu.a = 0x0
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x1
+    assert not cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.ORA, mode=AddressMode.Immediate, operand=0x0)
+    initial_pc = cpu.pc
+    cpu.a = 0x1
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x1
+    assert not cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.ORA, mode=AddressMode.Immediate, operand=0xF)
+    initial_pc = cpu.pc
+    cpu.a = 0xF0
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0xFF
+    assert not cpu.p.zero
+    assert cpu.p.negative
+
+    ins = Instruction(op=Operation.ORA, mode=AddressMode.Immediate, operand=0xF0)
+    initial_pc = cpu.pc
+    cpu.a = 0xFF
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0xFF
+    assert not cpu.p.zero
+    assert cpu.p.negative
+
+    ins = Instruction(op=Operation.EOR, mode=AddressMode.Immediate, operand=0x1)
+    initial_pc = cpu.pc
+    cpu.a = 0x1
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x00
+    assert cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.EOR, mode=AddressMode.Immediate, operand=0x0)
+    initial_pc = cpu.pc
+    cpu.a = 0x0
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x0
+    assert cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.EOR, mode=AddressMode.Immediate, operand=0x1)
+    initial_pc = cpu.pc
+    cpu.a = 0x0
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x1
+    assert not cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.EOR, mode=AddressMode.Immediate, operand=0x0)
+    initial_pc = cpu.pc
+    cpu.a = 0x1
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x1
+    assert not cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.EOR, mode=AddressMode.Immediate, operand=0xF)
+    initial_pc = cpu.pc
+    cpu.a = 0xF0
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0xFF
+    assert not cpu.p.zero
+    assert cpu.p.negative
+
+    ins = Instruction(op=Operation.EOR, mode=AddressMode.Immediate, operand=0xF0)
+    initial_pc = cpu.pc
+    cpu.a = 0xFF
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x0F
+    assert not cpu.p.zero
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.BIT, mode=AddressMode.ZeroPage, operand=0xA)
+    cpu.memory[0xA] = 0x0F
+    initial_pc = cpu.pc
+    cpu.a = 0xF0
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0xF0
+    assert cpu.p.zero
+    assert not cpu.p.negative
+    assert not cpu.p.overflow
+
+    ins = Instruction(op=Operation.BIT, mode=AddressMode.ZeroPage, operand=0xA)
+    cpu.memory[0xA] = 0xBF
+    initial_pc = cpu.pc
+    cpu.a = 0x40
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x40
+    assert cpu.p.zero
+    assert cpu.p.negative
+    assert not cpu.p.overflow
+
+    ins = Instruction(op=Operation.BIT, mode=AddressMode.ZeroPage, operand=0xA)
+    cpu.memory[0xA] = 0x4A
+    initial_pc = cpu.pc
+    cpu.a = 0x42
+    cpu.execute_instruction(ins)
+    assert cpu.a == 0x42
+    assert not cpu.p.zero
+    assert not cpu.p.negative
+    assert cpu.p.overflow
+
+
+def test_branch_instructions(system: CPU):
+    cpu = system
+
+    ins = Instruction(op=Operation.BCC, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.carry = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 + 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BCC, mode=AddressMode.Relative, operand=0xF0)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.carry = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 - 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BCC, mode=AddressMode.Relative, operand=0xF0)
+    cpu.pc = 0x00
+    initial_pc = cpu.pc
+    cpu.p.carry = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 - 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BCC, mode=AddressMode.Relative, operand=0xF1)
+    cpu.pc = 0x00
+    initial_pc = cpu.pc
+    cpu.p.carry = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 - 0xF) & 0xFFFF
+
+    ins = Instruction(op=Operation.BCC, mode=AddressMode.Relative, operand=0xF2)
+    cpu.pc = 0x00
+    initial_pc = cpu.pc
+    cpu.p.carry = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 - 0xE) & 0xFFFF
+
+    ins = Instruction(op=Operation.BCC, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0xFFFF
+    initial_pc = cpu.pc
+    cpu.p.carry = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 + 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BCC, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0xFFFC
+    initial_pc = cpu.pc
+    cpu.p.carry = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 + 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BCC, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.carry = True
+    cpu.execute_instruction(ins)
+    assert cpu.pc == initial_pc + 2
+
+    ins = Instruction(op=Operation.BCS, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.carry = True
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 + 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BCS, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.carry = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == initial_pc + 2
+
+    ins = Instruction(op=Operation.BEQ, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.zero = True
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 + 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BEQ, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.zero = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == initial_pc + 2
+
+    ins = Instruction(op=Operation.BNE, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.zero = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 + 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BNE, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.zero = True
+    cpu.execute_instruction(ins)
+    assert cpu.pc == initial_pc + 2
+
+    ins = Instruction(op=Operation.BMI, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.negative = True
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 + 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BMI, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.negative = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == initial_pc + 2
+
+    ins = Instruction(op=Operation.BPL, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.negative = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 + 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BPL, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.negative = True
+    cpu.execute_instruction(ins)
+    assert cpu.pc == initial_pc + 2
+
+    ins = Instruction(op=Operation.BVC, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.overflow = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 + 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BVC, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.overflow = True
+    cpu.execute_instruction(ins)
+    assert cpu.pc == initial_pc + 2
+
+    ins = Instruction(op=Operation.BVS, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.overflow = True
+    cpu.execute_instruction(ins)
+    assert cpu.pc == (initial_pc + 2 + 0x10) & 0xFFFF
+
+    ins = Instruction(op=Operation.BVS, mode=AddressMode.Relative, operand=0x10)
+    cpu.pc = 0x10
+    initial_pc = cpu.pc
+    cpu.p.overflow = False
+    cpu.execute_instruction(ins)
+    assert cpu.pc == initial_pc + 2
+
+
+def test_jump_instructions(full_mem_system: CPU):
+    cpu = full_mem_system
+
+    ins = Instruction(op=Operation.JMP, mode=AddressMode.Absolute, operand=0x1010)
+    cpu.execute_instruction(ins)
+    assert cpu.pc == 0x1010
+
+    ins = Instruction(op=Operation.JMP, mode=AddressMode.Indirect, operand=0x402D)
+    cpu.memory[0x402D : 0x402D + 2] = b"\x15\x10"
+    cpu.execute_instruction(ins)
+    assert cpu.pc == 0x1015
+
+    ins = Instruction(op=Operation.JMP, mode=AddressMode.Indirect, operand=0xFFFF)
+    cpu.memory[0xFFFF] = 0x15
+    cpu.memory[0xFF00] = 0x10
+    cpu.execute_instruction(ins)
+    assert cpu.pc == 0x1015
+
+    ins = Instruction(op=Operation.JMP, mode=AddressMode.Indirect, operand=0x04FF)
+    cpu.memory[0x04FF] = 0x55
+    cpu.memory[0x0400] = 0x42
+    cpu.execute_instruction(ins)
+    assert cpu.pc == 0x4255
+
+    ins = Instruction(op=Operation.JSR, mode=AddressMode.Absolute, operand=0x2030)
+    # Setup the PC, PC == test_value - instruction length + 1 since that (the address of the last byte of the JSR instruction)
+    # is what's get pushed on the stack
+    cpu.pc = 0xDEAD - ins.size + 1
+    cpu.s = 0xA0
+    cpu.execute_instruction(ins)
+    assert cpu.pc == 0x2030
+    assert cpu.s == 0xA2
+    assert cpu.memory[0x100 | cpu.s - 1] == 0xAD
+    assert cpu.memory[0x100 | cpu.s - 2] == 0xDE
+
+    ins = Instruction(op=Operation.RTS, mode=AddressMode.Implicit)
+    cpu.s = 0xFD
+    cpu.memory[0x1FE:0x200] = b"\x41\x43"
+    cpu.execute_instruction(ins)
+    assert cpu.pc == 0x4342
+    assert cpu.s == 0xFF

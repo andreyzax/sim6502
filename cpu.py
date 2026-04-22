@@ -14,6 +14,7 @@ Arithmetic & integer representation note:
 """
 
 import copy
+from ast import Add
 from dataclasses import dataclass
 from typing import Callable
 
@@ -39,6 +40,14 @@ class CPU:
     def _negate_8bit(i: int) -> int:
         """Inverse sign of value."""
         return (~i + 1) & 0xFF
+
+    @staticmethod
+    def _sign_extend_16_bit(i: int) -> int:
+        """Extend from 8 to 16 bit."""
+        if i > 0xFF:
+            raise ValueError(f"value {i} is bigger then 255, can't extend values wider then 8 bits")
+
+        return i | 0xFF00 if i & 0x80 else i & 0xFFFF
 
     def _fetch_16bit(self, address: int) -> int:
         value = self.memory[address + 1 & 0xFFFF]
@@ -110,7 +119,7 @@ class CPU:
         if ins.operand is None:
             raise RuntimeError(f"Instruction {ins} requires an operand")
 
-        if ins.mode == AddressMode.Immediate:
+        if ins.mode == AddressMode.Immediate or ins.mode == AddressMode.Relative:
             return ins.operand
         else:
             return self._address_mode_dispatch[ins.mode](ins.operand)
@@ -342,6 +351,114 @@ class CPU:
             address = self._compute_address(ins)
             self.memory[address] = operand & 0xFF
 
+    def _do_bitwise_instructions(self, ins: Instruction) -> None:
+        operand = self._fetch_operand(ins)
+
+        match ins.operation:
+            case Operation.AND:
+                self.a &= operand
+            case Operation.ORA:
+                self.a |= operand
+            case Operation.EOR:
+                self.a ^= operand
+            case _:
+                raise RuntimeError(f"Operation: {ins.operation} is not a valid bitwise operation")
+
+        self._update_flags(self.a)
+
+    def _do_bit_instruction(self, ins: Instruction) -> None:
+        if ins.operation != Operation.BIT:
+            raise RuntimeError(f"Instruction {ins} is not a BIT instruction")
+
+        operand = self._fetch_operand(ins)
+
+        result = self.a & operand
+
+        self.p.zero = result == 0
+        self.p.negative = self._is_8bit_negative(operand)
+        self.p.overflow = bool(operand & 0x40)  # copy bit 6 as per documentation
+
+    def _do_branch_instructions(self, ins: Instruction) -> None:
+        operand = self._fetch_operand(ins)
+        operand = self._sign_extend_16_bit(operand)
+
+        match ins.operation:
+            case Operation.BCC:
+                if not self.p.carry:
+                    self.pc += operand
+            case Operation.BCS:
+                if self.p.carry:
+                    self.pc += operand
+            case Operation.BEQ:
+                if self.p.zero:
+                    self.pc += operand
+            case Operation.BNE:
+                if not self.p.zero:
+                    self.pc += operand
+            case Operation.BPL:
+                if not self.p.negative:
+                    self.pc += operand
+            case Operation.BMI:
+                if self.p.negative:
+                    self.pc += operand
+            case Operation.BVC:
+                if not self.p.overflow:
+                    self.pc += operand
+            case Operation.BVS:
+                if self.p.overflow:
+                    self.pc += operand
+            case _:
+                raise RuntimeError(f"Operation: {ins.operation} is not a branch operation")
+
+    def _do_jump_instructions(self, ins: Instruction) -> None:
+        if ins.operation not in (Operation.JMP, Operation.JSR):
+            raise RuntimeError(f"Operation: {ins.operation} is not a jump operation")
+
+        # Usually self._fetch_operand() would check for this but here
+        # we can pass in ins.operand directly which could be None
+        if not ins.operand:
+            raise RuntimeError(f"Instruction {ins} doesn't have an operand, jump instructions require it")
+
+        # Special case addressing mode handling since they work different for jump instructions. We don't want to
+        # (fully) dereference the operands. for absolute mode, use it as is (like it's immediate mode).
+        # For indirect we dereference the first pointer and then use it as is (as if it's absolute mode).
+        # So one less level of indirection then usual.
+        #
+        # We also need to implement the infamous page crossing bug for indirect mode
+        if ins.mode not in (AddressMode.Absolute, AddressMode.Indirect):
+            raise RuntimeError(f"Invalid addressing mode for instruction {ins}")
+
+        if ins.mode == AddressMode.Absolute:
+            operand = ins.operand
+        else:
+            if (ins.operand & 0xFF) == 0xFF:
+                # Implement the page crossing "feature" in indirect mode
+                low_byte = self.memory[ins.operand]
+                high_byte = self.memory[ins.operand & 0xFF00]
+                operand = (high_byte << 8) | low_byte
+            else:
+                operand = self._fetch_16bit(ins.operand)
+        # operand = ins.operand if ins.mode == AddressMode.Absolute else self._fetch_16bit(ins.operand)
+
+        if ins.operation == Operation.JSR:
+            # self.pc - 1 isn't a bug! JSR stores the address *before* the next instruction
+            # (the address of it's operand's high byte) and RTS then *increments* the pulled address
+            # to correct it and returns to the next instruction.
+            self.memory[0x100 + self.s] = (self.pc - 1) >> 8
+            self.memory[0x100 + self.s + 1] = (self.pc - 1) & 0xFF
+            self.s += 2
+
+        self.pc = operand
+
+    def _do_rts_instruction(self, ins: Instruction) -> None:
+        low_byte = self.memory[0x100 + self.s + 1]
+        high_byte = self.memory[0x100 + self.s + 2]
+        self.s += 2
+
+        # Add one to "correct" for JSR's quirk of pushing it's own end address instead of pushing
+        # the next address to the stack.
+        self.pc = ((high_byte << 8) | low_byte) + 1
+
     @dataclass
     class _StatusRegister:
         carry: bool = False
@@ -438,6 +555,22 @@ class CPU:
             Operation.LSR: self._do_bit_shift_instructions,
             Operation.ROL: self._do_bit_shift_instructions,
             Operation.ROR: self._do_bit_shift_instructions,
+            Operation.AND: self._do_bitwise_instructions,
+            Operation.ORA: self._do_bitwise_instructions,
+            Operation.EOR: self._do_bitwise_instructions,
+            Operation.BIT: self._do_bit_instruction,
+            Operation.BCC: self._do_branch_instructions,
+            Operation.BCS: self._do_branch_instructions,
+            Operation.BEQ: self._do_branch_instructions,
+            Operation.BMI: self._do_branch_instructions,
+            Operation.BNE: self._do_branch_instructions,
+            Operation.BPL: self._do_branch_instructions,
+            Operation.BMI: self._do_branch_instructions,
+            Operation.BVC: self._do_branch_instructions,
+            Operation.BVS: self._do_branch_instructions,
+            Operation.JMP: self._do_jump_instructions,
+            Operation.JSR: self._do_jump_instructions,
+            Operation.RTS: self._do_rts_instruction,
         }
 
         self._address_mode_dispatch: dict[AddressMode, Callable[[int], int]] = {
