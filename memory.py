@@ -52,14 +52,14 @@ class RamSegment(MemorySegment):
 
     def __getitem__(self, address: int) -> int:
         """Retrieve a single byte from ram."""
-        super()._validate_address(address)
+        self._validate_address(address)
 
         offset = address - self.base_page * PAGE_SIZE
         return self._backing_store[offset]
 
     def __setitem__(self, address: int, value: int) -> None:
         """Store a single byte to ram."""
-        super()._validate_address(address)
+        self._validate_address(address)
 
         if value not in range(0, 256):
             raise ValueError("Only byte values can be stored")
