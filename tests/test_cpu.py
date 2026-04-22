@@ -1,6 +1,6 @@
 import pytest
 
-from cpu import CPU
+from cpu import CPU, CPUTrap
 from memory import MemoryMap
 from assembly import Instruction, Operation, AddressMode
 
@@ -1598,3 +1598,227 @@ def test_jump_instructions(full_mem_system: CPU):
     cpu.execute_instruction(ins)
     assert cpu.pc == 0x4342
     assert cpu.s == 0xFF
+
+
+def test_brk_instruction(system: CPU):
+    cpu = system
+
+    ins = Instruction(op=Operation.BRK, mode=AddressMode.Implicit)
+    cpu.pc = 0xDEED
+    with pytest.raises(CPUTrap):
+        cpu.execute_instruction(ins)
+
+    assert cpu.pc == 0xDEEE
+    assert cpu.p.interrupt_disable
+    stored_flags = cpu.memory[0x100 | cpu.s + 1]
+    low_byte = cpu.memory[0x100 | cpu.s + 2]
+    high_byte = cpu.memory[0x100 | cpu.s + 3]
+    return_address = high_byte << 8 | low_byte
+    assert return_address == 0xDEEF
+    assert bool(stored_flags & (1 << 4))  # Check "B" flag
+
+
+def test_rti_instruction(system: CPU):
+    cpu = system
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.pc = 0x0
+    cpu.s = 0xDF
+    cpu.memory[0x1E0:0x1E3] = b"\x00\x45\x46"
+    cpu.execute_instruction(ins)
+    assert cpu.s == 0xE2
+    assert cpu.pc == 0x4645
+    assert not cpu.p.carry
+    assert not cpu.p.decimal
+    assert not cpu.p.interrupt_disable
+    assert not cpu.p.negative
+    assert not cpu.p.zero
+    assert not cpu.p.overflow
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.pc = 0x0
+    cpu.s = 0xDF
+    cpu.memory[0x1E0:0x1E3] = b"\x01\x45\x46"
+    cpu.execute_instruction(ins)
+    assert cpu.s == 0xE2
+    assert cpu.pc == 0x4645
+    assert cpu.p.carry
+    assert not cpu.p.decimal
+    assert not cpu.p.interrupt_disable
+    assert not cpu.p.negative
+    assert not cpu.p.zero
+    assert not cpu.p.overflow
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.pc = 0x0
+    cpu.s = 0xDF
+    cpu.memory[0x1E0:0x1E3] = b"\x80\x45\x46"
+    cpu.execute_instruction(ins)
+    assert cpu.s == 0xE2
+    assert cpu.pc == 0x4645
+    assert not cpu.p.carry
+    assert not cpu.p.decimal
+    assert not cpu.p.interrupt_disable
+    assert cpu.p.negative
+    assert not cpu.p.zero
+    assert not cpu.p.overflow
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.pc = 0x0
+    cpu.s = 0xDF
+    cpu.memory[0x1E0:0x1E3] = b"\x02\x45\x46"
+    cpu.execute_instruction(ins)
+    assert cpu.s == 0xE2
+    assert cpu.pc == 0x4645
+    assert not cpu.p.carry
+    assert cpu.p.zero
+    assert not cpu.p.interrupt_disable
+    assert not cpu.p.decimal
+    assert not cpu.p.overflow
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.pc = 0x0
+    cpu.s = 0xDF
+    cpu.memory[0x1E0:0x1E3] = b"\x04\x45\x46"
+    cpu.execute_instruction(ins)
+    assert cpu.s == 0xE2
+    assert cpu.pc == 0x4645
+    assert not cpu.p.carry
+    assert not cpu.p.zero
+    assert cpu.p.interrupt_disable
+    assert not cpu.p.decimal
+    assert not cpu.p.overflow
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.pc = 0x0
+    cpu.s = 0xDF
+    cpu.memory[0x1E0:0x1E3] = b"\x08\x45\x46"
+    cpu.execute_instruction(ins)
+    assert cpu.s == 0xE2
+    assert cpu.pc == 0x4645
+    assert not cpu.p.carry
+    assert not cpu.p.zero
+    assert not cpu.p.interrupt_disable
+    assert cpu.p.decimal
+    assert not cpu.p.overflow
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.pc = 0x0
+    cpu.s = 0xDF
+    cpu.memory[0x1E0:0x1E3] = b"\x10\x45\x46"
+    cpu.execute_instruction(ins)
+    assert cpu.s == 0xE2
+    assert cpu.pc == 0x4645
+    assert not cpu.p.carry
+    assert not cpu.p.zero
+    assert not cpu.p.interrupt_disable
+    assert not cpu.p.decimal
+    assert not cpu.p.overflow
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.pc = 0x0
+    cpu.s = 0xDF
+    cpu.memory[0x1E0:0x1E3] = b"\x20\x45\x46"
+    cpu.execute_instruction(ins)
+    assert cpu.s == 0xE2
+    assert cpu.pc == 0x4645
+    assert not cpu.p.carry
+    assert not cpu.p.zero
+    assert not cpu.p.interrupt_disable
+    assert not cpu.p.decimal
+    assert not cpu.p.overflow
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.pc = 0x0
+    cpu.s = 0xDF
+    cpu.memory[0x1E0:0x1E3] = b"\x40\x45\x46"
+    cpu.execute_instruction(ins)
+    assert cpu.s == 0xE2
+    assert cpu.pc == 0x4645
+    assert not cpu.p.carry
+    assert not cpu.p.zero
+    assert not cpu.p.interrupt_disable
+    assert not cpu.p.decimal
+    assert cpu.p.overflow
+    assert not cpu.p.negative
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.pc = 0x0
+    cpu.s = 0xDF
+    cpu.memory[0x1E0:0x1E3] = b"\x80\x45\x46"
+    cpu.execute_instruction(ins)
+    assert cpu.s == 0xE2
+    assert cpu.pc == 0x4645
+    assert not cpu.p.carry
+    assert not cpu.p.zero
+    assert not cpu.p.interrupt_disable
+    assert not cpu.p.decimal
+    assert not cpu.p.overflow
+    assert cpu.p.negative
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.pc = 0x0
+    cpu.s = 0xDF
+    cpu.memory[0x1E0:0x1E3] = b"\xff\x45\x46"
+    cpu.execute_instruction(ins)
+    assert cpu.s == 0xE2
+    assert cpu.pc == 0x4645
+    assert cpu.p.carry
+    assert cpu.p.zero
+    assert cpu.p.interrupt_disable
+    assert cpu.p.decimal
+    assert cpu.p.overflow
+    assert cpu.p.negative
+
+    cpu.pc = 0x0
+    intial_pc = cpu.pc
+    cpu.s = 0x40
+    initial_s = cpu.s
+    cpu.p.carry = True
+    cpu.p.zero = True
+    cpu.p.interrupt_disable = True
+    cpu.p.decimal = True
+    cpu.p.overflow = True
+    cpu.p.negative = True
+
+    ins = Instruction(op=Operation.BRK, mode=AddressMode.Implicit)
+    with pytest.raises(CPUTrap):
+        cpu.execute_instruction(ins)
+    assert cpu.s == initial_s - 3
+
+    instructions = (
+        Instruction(op=Operation.CLC, mode=AddressMode.Implicit),
+        Instruction(
+            op=Operation.LDA, mode=AddressMode.Immediate, operand=0x1
+        ),  # clears both zero and negative flags (which can't be set at the same time in a real 6502)
+        Instruction(op=Operation.CLI, mode=AddressMode.Implicit),
+        Instruction(op=Operation.CLD, mode=AddressMode.Implicit),
+        Instruction(op=Operation.CLV, mode=AddressMode.Implicit),
+    )
+    for ins in instructions:
+        cpu.execute_instruction(ins)
+    assert cpu.p.carry == False
+    assert cpu.p.zero == False
+    assert cpu.p.interrupt_disable == False
+    assert cpu.p.decimal == False
+    assert cpu.p.overflow == False
+    assert cpu.p.negative == False
+    assert not cpu.pc == intial_pc + 2
+
+    ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
+    cpu.execute_instruction(ins)
+
+    assert cpu.p.carry == True
+    assert cpu.p.zero == True
+    assert cpu.p.interrupt_disable == True
+    assert cpu.p.decimal == True
+    assert cpu.p.overflow == True
+    assert cpu.p.negative == True
+
+    assert cpu.pc == intial_pc + 2
+    assert cpu.s == initial_s

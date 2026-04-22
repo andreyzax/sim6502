@@ -24,7 +24,9 @@ from memory import MemoryMap
 class CPUTrap(Exception):
     """Raised on cpu traps to break out of the execution loop."""
 
-    pass
+    def __init__(self, cpu: "CPU"):
+        """Pass in the CPU object as the trap context."""
+        self.cpu = cpu
 
 
 class CPU:
@@ -458,6 +460,40 @@ class CPU:
         # the next address to the stack.
         self.pc = ((high_byte << 8) | low_byte) + 1
 
+    def _do_brk_instruction(self, ins: Instruction) -> None:
+        """
+        Currently BRK is not emulated as a software interrupt as it was on the real hardware.
+
+        Instead it is used as a way to break out of the emulation loop into the hosting context,
+        where the emulation state could be examined, modified and continued (or restarted).
+        We do conduct the pre-jump "ceremony", pushing the PC and status register (including the B flag)
+        and disabling interrupts so our state matches the real hardware. Only the final step of the indirect
+        jump via the 0xFFFE vector is avoided, we simply exit the emulation loop instead.
+        """
+        # While JSR pushes the address before the next instruction, BRK pushes
+        # a return address that skips the next byte and unlike RTS the RTI instruction doesn't
+        # "correct" it, returning from a BRK handler skips one byte in the instruction stream (which is why
+        # many consider this a 2 byte instruction even though it's an implicit mode instruction without any operands).
+        #
+        # None of this is actually relevant for this implementation since it doesn't actually jump anywhere.
+        self.memory[0x100 + self.s] = (self.pc + 1) >> 8
+        self.memory[0x100 + self.s - 1] = (self.pc + 1) & 0xFF
+
+        flags = self.p._get_flags()
+        flags |= 1 << 4  # BRK sets the "b" flag
+        self.memory[0x100 + self.s - 2] = flags
+        self.s -= 3
+        self.p.interrupt_disable = True
+
+        raise CPUTrap(cpu=self)
+
+    def _do_rti_instruction(self, ins: Instruction) -> None:
+        self.p._set_flags(self.memory[0x100 | self.s + 1])
+        low_byte = self.memory[0x100 | self.s + 2]
+        high_byte = self.memory[0x100 | self.s + 3]
+        self.pc = high_byte << 8 | low_byte  # Unlike RTS we don't adjust the return address
+        self.s += 3
+
     @dataclass
     class _StatusRegister:
         carry: bool = False
@@ -570,6 +606,8 @@ class CPU:
             Operation.JMP: self._do_jump_instructions,
             Operation.JSR: self._do_jump_instructions,
             Operation.RTS: self._do_rts_instruction,
+            Operation.BRK: self._do_brk_instruction,
+            Operation.RTI: self._do_rti_instruction,
         }
 
         self._address_mode_dispatch: dict[AddressMode, Callable[[int], int]] = {
@@ -679,5 +717,9 @@ class CPU:
 
     def run(self) -> None:
         """Start the cpu's run loop, we only stop due to exceptions."""
-        while True:
-            self.step()
+        try:
+            while True:
+                self.step()
+        except CPUTrap as ctx:
+            # This all should probably be a callable passed in to to run()
+            print(f"Execution stopped:\n {ctx}")
