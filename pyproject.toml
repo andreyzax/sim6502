@@ -12,7 +12,7 @@ line-length = 145
 
 [tool.ruff.lint]
 select = [ "F", "E", "W", "I", "D", "SIM", "B" ]
-ignore = ["D212","D404"]
+ignore = ["D212", "D401", "D404"]
 exclude = [ "tests" ]
 
 [tool.pytest.ini_options]
