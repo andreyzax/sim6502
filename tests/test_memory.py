@@ -1,11 +1,11 @@
 import pytest
 
-from memory import MemoryMap, RamSegment, PAGE_NR, PAGE_SIZE
+from memory import MemoryMap, RamSegment, PAGE_NR, PAGE_SIZE, RomSegment
 
 
 @pytest.fixture(scope="session")
 def simple_memory_map() -> MemoryMap:
-    return MemoryMap(((0, 10),))
+    return MemoryMap(((0, 10),), additional_memory_segments=(RomSegment.from_bytes(255, b"\xef" * 256),))
 
 
 @pytest.fixture(scope="session")
@@ -25,7 +25,7 @@ def test_memory_map_simple_allocation(simple_memory_map: MemoryMap):
     assert len(mm._allocation_bitmap) == PAGE_NR
     assert all(mm._allocation_bitmap[0 : size - 1])
     assert not any(mm._allocation_bitmap[size:])
-    assert len(mm._memory_map) == 1
+    assert len(mm._memory_map) == 2
 
 
 def test_disjoint_mm_allocation(disjoint_memory_map: MemoryMap):
@@ -75,6 +75,55 @@ def test_ram_segment(simple_memory_map: MemoryMap):
         assert mem_seg[0xFF] == 0x42
 
 
+def test_rom_segment(simple_memory_map: MemoryMap):
+    base = 255
+    size = 1
+    mm = simple_memory_map
+    assert mm._memory_map[1].base_page == base
+    assert mm._memory_map[1]._page_range.start == base
+    assert mm._memory_map[1]._page_range.stop == base + size
+    assert isinstance(mm._memory_map[1], RomSegment)
+    if isinstance(mm._memory_map[1], RomSegment):
+        mem_seg = mm._memory_map[1]
+        assert len(mem_seg._backing_store) == size * PAGE_SIZE
+        assert all((byte == 0xEF for byte in mem_seg))
+
+        with pytest.raises(IndexError):
+            mem_seg[0x0]
+        with pytest.raises(IndexError):
+            mem_seg[0x0] = 0
+        with pytest.raises(IndexError):
+            mem_seg[0x0A45]
+        with pytest.raises(IndexError):
+            mem_seg[0x0A45] = 0
+
+        mem_seg[0xFF00] = 0x0
+        assert mem_seg[0xFF00] == 0xEF
+
+        rom_seg = RomSegment.from_bytes(100, b"DEADBEEF" * 16)
+
+        for i in range(100 * 256, 100 * 256 + 128):
+            if i % 8 == 0:
+                assert rom_seg[i] == ord("D")
+            if i % 8 == 1:
+                assert rom_seg[i] == ord("E")
+            if i % 8 == 2:
+                assert rom_seg[i] == ord("A")
+            if i % 8 == 3:
+                assert rom_seg[i] == ord("D")
+            if i % 8 == 4:
+                assert rom_seg[i] == ord("B")
+            if i % 8 == 5:
+                assert rom_seg[i] == ord("E")
+            if i % 8 == 6:
+                assert rom_seg[i] == ord("E")
+            if i % 8 == 7:
+                assert rom_seg[i] == ord("F")
+
+        for i in range(100 * 256 + 128, 100 * 256 + 256):
+            assert rom_seg[i] == 0x0
+
+
 def test_simple_memory_map_access(simple_memory_map: MemoryMap):
     mm = simple_memory_map
 
@@ -112,7 +161,6 @@ def test_simple_memory_map_access(simple_memory_map: MemoryMap):
 
     assert mm[0xFD10] == 0xFF
     assert mm[0xFE20] == 0xFF
-    assert mm[0xFFF0] == 0xFF
 
     mm[0:4] = b"dead"
     assert mm[0:4] == b"dead"
@@ -121,6 +169,17 @@ def test_simple_memory_map_access(simple_memory_map: MemoryMap):
     assert mm[1] == ord("e")
     assert mm[2] == ord("a")
     assert mm[3] == ord("d")
+
+    assert mm[0xFFF0] == 0xEF
+    mm[0xFFF0] = 0x0
+    assert mm[0xFFF0] == 0xEF
+    assert mm[0xFF00:0xFF10] == b"\xef" * 16
+    assert mm[0xFF00:0xFFFF] == b"\xef" * 255
+    assert mm[0xFF00:0x10000] == b"\xef" * 256
+    assert mm[0xFF00:0x10001] == b"\xef" * 256
+    assert mm[0xFF00:0x10002] == b"\xef" * 256
+    with pytest.raises(ValueError):
+        assert mm[0x10000] == 0xEF
 
 
 def test_disjoint_memory_map_access(disjoint_memory_map):

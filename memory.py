@@ -68,6 +68,82 @@ class RamSegment(MemorySegment):
         self._backing_store[offset] = value
 
 
+class RomSegment(MemorySegment):
+    """A memory segment that is backed by rom."""
+
+    def __init__(
+        self, base_page: int, *, npages: int | None = None, bytes_source: bytes | None = None, binary_file_source: BinaryIO | None = None
+    ) -> None:
+        """
+        Allocate a 'bytes' object for the segment.
+
+        If napages is specified, it's allowed to be bigger then size of the source.
+        The extra rom will be zero padded. But if it's smaller then the data source,
+        A ValueError excpetion will be raised. Only one of 'bytes_source' or 'binary_file_source'
+        must be specified.
+        """
+        if bool(bytes_source) == bool(binary_file_source):
+            raise ValueError("You must pass in *one* and *only one* of 'bytes_source' or 'binary_file_source'")
+
+        if bytes_source:
+            data_size = len(bytes_source)
+            data = bytes_source
+        else:
+            binary_file_source = cast(BinaryIO, binary_file_source)
+            data = binary_file_source.read(ADDRESS_SPACE_SIZE)
+
+            if binary_file_source.read(1):
+                raise RuntimeError("File source is to big to fit in memory")
+
+            data_size = len(data)
+
+        if npages and (npages * PAGE_SIZE < data_size):
+            raise ValueError(f"npages ({npages}) is too small for data size ({data_size})")
+
+        if not npages:
+            npages = data_size // PAGE_SIZE
+            npages = npages + (0 if npages * PAGE_SIZE == data_size else 1)
+
+        super().__init__(base_page, npages)
+
+        self._backing_store = data + (b"\x00" * ((npages * PAGE_SIZE) - data_size))
+
+    @classmethod
+    def from_bytes(cls, base_page: int, bytes_source: bytes) -> Self:
+        """Create a RomSegment Class from a bytes object."""
+        return cls(base_page, bytes_source=bytes_source)
+
+    @classmethod
+    def from_binary_file(cls, base_page: int, path: str | Path) -> Self:
+        """Create a RomSegment Class from a file."""
+        with open(path, "rb") as f:
+            return cls(base_page, binary_file_source=f)
+
+    def __getitem__(self, address: int) -> int:
+        """Retrieve a single byte from rom."""
+        self._validate_address(address)
+
+        offset = address - self.base_page * PAGE_SIZE
+        return self._backing_store[offset]
+
+    def __setitem__(self, address: int, value: int) -> None:
+        """
+        Handle write requests to rom.
+
+        While it's obviously impossible to write to rom we still need to have a callable
+        __setitem__ method to:
+            1. satisfy the base class api
+            2. "handle" writes, while the 6502 didn't have any memory protection or "invalid" access trap
+               mechanism for us to emulate and writes to rom would be silently thrown away, we still need
+               a __setitem__ method to accept the writes (and throw them away like the hardware would)
+            3. finally, for our internal api we need the RomSegment to raise IndexError exceptions when the write
+               is outside the segment's page bounds, that is a normal code path that the memory map class uses
+               in it's address resolution algorithm. We will get write attempts that aren't meant for us and need
+               to respond with IndexError as part of the MemoryMap <-> MemorySegment api
+        """
+        self._validate_address(address)  # Here to raise IndexError exceptions, we do nothing with the actual value!
+
+
 class MemoryMap:
     """
     Models the system's memory map.
