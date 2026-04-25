@@ -1,18 +1,18 @@
 import pytest
 
 from cpu import CPU, CPUTrap
-from memory import MemoryMap
+from memory import MemoryMap, MemorySegment, RamSegment
 from assembly import Instruction, Operation, AddressMode
 
 
 @pytest.fixture
 def system() -> CPU:
-    return CPU(MemoryMap(allocation_list=((0, 16),)))  # 4KiB of ram
+    return CPU(MemoryMap(RamSegment(0, 4 * 1024)))
 
 
 @pytest.fixture
 def full_mem_system() -> CPU:
-    return CPU(MemoryMap(allocation_list=((0, 256),)))
+    return CPU(MemoryMap(RamSegment(0, 0x10000)))
 
 
 def test_nop(system: CPU):

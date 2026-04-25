@@ -16,31 +16,30 @@ from typing import BinaryIO, Self, cast, overload
 PAGE_SIZE = 256
 PAGE_NR = 256  # 256 pages * 256 bytes per page = 64 KiB address space
 ADDRESS_SPACE_SIZE = 1024 * 64
+LAST_ADDRESS = ADDRESS_SPACE_SIZE - 1
 
 
 @total_ordering
 class MemorySegment(ABC):
     """A contiguous region of memory."""
 
-    def __init__(self, base_page: int, npages: int) -> None:
+    def __init__(self, base_address: int, size: int) -> None:
         """Initialize mapping page range."""
-        if npages * PAGE_SIZE > ADDRESS_SPACE_SIZE:
-            raise ValueError(f"Allocation is to large, npages({npages}) * page size{PAGE_SIZE} > address space size ({ADDRESS_SPACE_SIZE})")
-        if (base_page + npages) > (PAGE_NR):
+        if size > ADDRESS_SPACE_SIZE:
+            raise ValueError(f"Allocation is to large, size({size}) > address space size ({ADDRESS_SPACE_SIZE})")
+        if (base_address + size) > (ADDRESS_SPACE_SIZE):
             raise ValueError(
-                f"Allocation out of bounds, base_page({base_page}) + size({npages}) == {base_page + npages - 1} which is beyond the last page ({PAGE_NR - 1})"
+                f"Allocation out of bounds, base_address({base_address}) + size({size}) => {base_address + size - 1} which is beyond the last address ({LAST_ADDRESS})"
             )
-        self.base_page = base_page
-        self.last_page = base_page + npages - 1
-        self._page_range = range(base_page, base_page + npages, 1)
+        self.base_address = base_address
+        self.last_address = base_address + size - 1
+        self._address_range = range(base_address, base_address + size)
 
     def _validate_address(self, address: int) -> None:
-        if address > (PAGE_SIZE * PAGE_NR) - 1:
-            raise ValueError(f"address: {address:X} is bigger then {(PAGE_SIZE * PAGE_NR) - 1:X}")
+        if address > LAST_ADDRESS:
+            raise ValueError(f"address: 0x{address:04X} is outside of the address space (0x0000-0x{LAST_ADDRESS:04X})")
 
-        page = address >> 8
-
-        if page not in self._page_range:
+        if address not in self._address_range:
             raise IndexError
 
     @abstractmethod
@@ -53,19 +52,22 @@ class MemorySegment(ABC):
         """Subscription operator write api."""
         ...
 
-    def __contains__(self, value: Self) -> bool:
+    def __contains__(self, value: Self | int) -> bool:
         """Containment operator 'a in b' operator api."""
-        if not isinstance(value, MemorySegment):
+        if not isinstance(value, MemorySegment | int):
             return NotImplemented
 
-        return self.base_page <= value.base_page and self.last_page >= value.last_page
+        if isinstance(value, MemorySegment):
+            return self.base_address <= value.base_address and self.last_address >= value.last_address
+        else:
+            return value in self._address_range
 
     def __and__(self, value: Self) -> bool:
         if not isinstance(value, MemorySegment):
             return NotImplemented
 
-        return (self.base_page <= value.base_page and value.base_page <= self.last_page) or (
-            self.base_page <= value.last_page and value.last_page <= self.last_page
+        return (self.base_address <= value.base_address and value.base_address <= self.last_address) or (
+            self.base_address <= value.last_address and value.last_address <= self.last_address
         )
 
     __rand__ = __and__
@@ -74,29 +76,29 @@ class MemorySegment(ABC):
         if not isinstance(value, MemorySegment):
             return NotImplemented
 
-        return self.base_page < value.base_page
+        return self.base_address < value.base_address
 
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, MemorySegment):
             return NotImplemented
 
-        return self.base_page == value.base_page
+        return self.base_address == value.base_address
 
 
 class RamSegment(MemorySegment):
     """A memory segment that is backed by ram."""
 
-    def __init__(self, base_page: int, npages: int) -> None:
+    def __init__(self, base_address: int, size: int) -> None:
         """Allocate a bytearray for the segment."""
-        super().__init__(base_page, npages)
+        super().__init__(base_address, size)
 
-        self._backing_store = bytearray(npages * PAGE_SIZE)
+        self._backing_store = bytearray(size)
 
     def __getitem__(self, address: int) -> int:
         """Retrieve a single byte from ram."""
         self._validate_address(address)
 
-        offset = address - self.base_page * PAGE_SIZE
+        offset = address - self.base_address
         return self._backing_store[offset]
 
     def __setitem__(self, address: int, value: int) -> None:
@@ -106,7 +108,7 @@ class RamSegment(MemorySegment):
         if value not in range(0, 256):
             raise ValueError("Only byte values can be stored")
 
-        offset = address - self.base_page * PAGE_SIZE
+        offset = address - self.base_address
         self._backing_store[offset] = value
 
     def merge(self, other: Self) -> Self:
@@ -119,25 +121,25 @@ class RamSegment(MemorySegment):
         If one RamSegment is fully contained in another this will return a new object with
         the same address space range as the containing object
         """
-        new_base_page = min(self.base_page, other.base_page)
-        new_last_page = max(self.last_page, other.last_page)
-        new_npages = new_last_page - new_base_page + 1
+        new_base_address = min(self.base_address, other.base_address)
+        new_last_address = max(self.last_address, other.last_address)
+        new_size = new_last_address - new_base_address + 1
 
-        return type(self)(new_base_page, new_npages)
+        return type(self)(new_base_address, new_size)
 
 
 class RomSegment(MemorySegment):
     """A memory segment that is backed by rom."""
 
     def __init__(
-        self, base_page: int, *, npages: int | None = None, bytes_source: bytes | None = None, binary_file_source: BinaryIO | None = None
+        self, base_address: int, *, size: int | None = None, bytes_source: bytes | None = None, binary_file_source: BinaryIO | None = None
     ) -> None:
         """
         Allocate a 'bytes' object for the segment.
 
-        If napages is specified, it's allowed to be bigger then size of the source.
+        If size is specified, it's allowed to be bigger then size of the source.
         The extra rom will be zero padded. But if it's smaller then the data source,
-        A ValueError excpetion will be raised. Only one of 'bytes_source' or 'binary_file_source'
+        A ValueError exception will be raised. Only one of 'bytes_source' or 'binary_file_source'
         must be specified.
         """
         if bool(bytes_source) == bool(binary_file_source):
@@ -155,33 +157,32 @@ class RomSegment(MemorySegment):
 
             data_size = len(data)
 
-        if npages and (npages * PAGE_SIZE < data_size):
-            raise ValueError(f"npages ({npages}) is too small for data size ({data_size})")
+        if size and (size < data_size):
+            raise ValueError(f"size ({size}) is too small for data size ({data_size})")
 
-        if not npages:
-            npages = data_size // PAGE_SIZE
-            npages = npages + (0 if npages * PAGE_SIZE == data_size else 1)
+        if not size:
+            size = data_size
 
-        super().__init__(base_page, npages)
+        super().__init__(base_address, size)
 
-        self._backing_store = data + (b"\x00" * ((npages * PAGE_SIZE) - data_size))
+        self._backing_store = data
 
     @classmethod
-    def from_bytes(cls, base_page: int, bytes_source: bytes) -> Self:
+    def from_bytes(cls, base_address: int, bytes_source: bytes) -> Self:
         """Create a RomSegment Class from a bytes object."""
-        return cls(base_page, bytes_source=bytes_source)
+        return cls(base_address, bytes_source=bytes_source)
 
     @classmethod
-    def from_binary_file(cls, base_page: int, path: str | Path) -> Self:
+    def from_binary_file(cls, base_address: int, path: str | Path) -> Self:
         """Create a RomSegment Class from a file."""
         with open(path, "rb") as f:
-            return cls(base_page, binary_file_source=f)
+            return cls(base_address, binary_file_source=f)
 
     def __getitem__(self, address: int) -> int:
         """Retrieve a single byte from rom."""
         self._validate_address(address)
 
-        offset = address - self.base_page * PAGE_SIZE
+        offset = address - self.base_address
         return self._backing_store[offset]
 
     def __setitem__(self, address: int, value: int) -> None:
@@ -274,7 +275,7 @@ class MemoryMap:
                     continue
             return self._default_value
         else:
-            index_range = range(*address.indices(PAGE_SIZE * PAGE_NR))
+            index_range = range(*address.indices(ADDRESS_SPACE_SIZE))
             return bytes(self.__getitem__(i) for i in index_range)  # Yes we recursively call ourself,
             # shouldn't be an issue since this always calls the other branch of the function
             # which is non recursive.
@@ -299,7 +300,7 @@ class MemoryMap:
                     continue
             return  # If we can't find a mapped segment for our address we just silently drop the write, just like on real hardware!
         elif isinstance(address, slice) and isinstance(value, (list, tuple, bytearray, bytes)) and all(isinstance(i, int) for i in value):
-            index_range = range(*address.indices(PAGE_SIZE * PAGE_NR))
+            index_range = range(*address.indices(ADDRESS_SPACE_SIZE))
             if len(index_range) > len(value):
                 raise ValueError("Slice can't be longer then source data")
             for i in index_range:

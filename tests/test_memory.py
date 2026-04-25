@@ -6,23 +6,22 @@ from memory import MemoryMap, RamSegment, PAGE_NR, PAGE_SIZE, RomSegment
 @pytest.fixture(scope="session")
 def simple_memory_map() -> MemoryMap:
     return MemoryMap(
-        RamSegment(0, 10),
-        RomSegment.from_bytes(255, b"\xef" * 256),
+        RamSegment(0, 2560),
+        RomSegment.from_bytes(0xFF00, b"\xef" * 256),
     )
 
 
 @pytest.fixture(scope="session")
 def disjoint_memory_map() -> MemoryMap:
-    return MemoryMap(RamSegment(0, 3), RamSegment(253, 3))
+    return MemoryMap(RamSegment(0, 768), RamSegment(0xFD00, 768))
 
 
 @pytest.fixture(scope="session")
 def overlapping_memory_map() -> MemoryMap:
-    return MemoryMap(RamSegment(0, 5), RamSegment(3, 5))
+    return MemoryMap(RamSegment(0, 1280), RamSegment(0x300, 1280))
 
 
 def test_memory_map_simple_allocation(simple_memory_map: MemoryMap):
-    size = 10
     mm = simple_memory_map
 
     assert len(mm._memory_map) == 2
@@ -38,22 +37,25 @@ def test_overlapping_mm_allocation(overlapping_memory_map: MemoryMap):
     mm = overlapping_memory_map
 
     assert len(mm._memory_map) == 1
-    assert mm._memory_map[0]._page_range.start == 0
-    assert mm._memory_map[0]._page_range.stop == 8
+    assert mm._memory_map[0]._address_range.start == 0
+    assert mm._memory_map[0]._address_range.stop == 0x800
+    assert mm._memory_map[0].base_address == 0x0
+    assert mm._memory_map[0].last_address == 0x7FF
 
 
 def test_ram_segment(simple_memory_map: MemoryMap):
     base = 0
-    size = 10
+    size = 2560
     mm = simple_memory_map
 
-    assert mm._memory_map[0].base_page == base
-    assert mm._memory_map[0]._page_range.start == base
-    assert mm._memory_map[0]._page_range.stop == base + size
+    assert mm._memory_map[0].base_address == base
+    assert mm._memory_map[0].last_address == base + size - 1
+    assert mm._memory_map[0]._address_range.start == base
+    assert mm._memory_map[0]._address_range.stop == base + size
     assert isinstance(mm._memory_map[0], RamSegment)
     if isinstance(mm._memory_map[0], RamSegment):  # Yes we already asserted this in the previous line but the type checker doesn't care
         mem_seg = mm._memory_map[0]
-        assert len(mem_seg._backing_store) == 10 * PAGE_SIZE
+        assert len(mem_seg._backing_store) == 2560
 
         with pytest.raises(IndexError):
             mem_seg[0xA00]
@@ -70,16 +72,17 @@ def test_ram_segment(simple_memory_map: MemoryMap):
 
 
 def test_rom_segment(simple_memory_map: MemoryMap):
-    base = 255
-    size = 1
+    base = 0xFF00
+    size = 256
     mm = simple_memory_map
-    assert mm._memory_map[1].base_page == base
-    assert mm._memory_map[1]._page_range.start == base
-    assert mm._memory_map[1]._page_range.stop == base + size
+    assert mm._memory_map[1].base_address == base
+    assert mm._memory_map[1].last_address == base + size - 1
+    assert mm._memory_map[1]._address_range.start == base
+    assert mm._memory_map[1]._address_range.stop == base + size
     assert isinstance(mm._memory_map[1], RomSegment)
     if isinstance(mm._memory_map[1], RomSegment):
         mem_seg = mm._memory_map[1]
-        assert len(mem_seg._backing_store) == size * PAGE_SIZE
+        assert len(mem_seg._backing_store) == size
         assert all((byte == 0xEF for byte in mem_seg))
 
         with pytest.raises(IndexError):
@@ -94,9 +97,9 @@ def test_rom_segment(simple_memory_map: MemoryMap):
         mem_seg[0xFF00] = 0x0
         assert mem_seg[0xFF00] == 0xEF
 
-        rom_seg = RomSegment.from_bytes(100, b"DEADBEEF" * 16)
+        rom_seg = RomSegment.from_bytes(0x6400, b"DEADBEEF" * 16)
 
-        for i in range(100 * 256, 100 * 256 + 128):
+        for i in range(0x6400, 0x6400 + 128):
             if i % 8 == 0:
                 assert rom_seg[i] == ord("D")
             if i % 8 == 1:
@@ -114,8 +117,8 @@ def test_rom_segment(simple_memory_map: MemoryMap):
             if i % 8 == 7:
                 assert rom_seg[i] == ord("F")
 
-        for i in range(100 * 256 + 128, 100 * 256 + 256):
-            assert rom_seg[i] == 0x0
+        with pytest.raises(IndexError):
+            _ = rom_seg[0x6400 + 128]
 
 
 def test_simple_memory_map_access(simple_memory_map: MemoryMap):
