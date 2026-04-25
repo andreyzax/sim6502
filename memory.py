@@ -55,7 +55,7 @@ class MemorySegment(ABC):
     def __contains__(self, value: Self | int) -> bool:
         """Containment operator 'a in b' operator api."""
         if not isinstance(value, MemorySegment | int):
-            return NotImplemented
+            raise TypeError(f"operator not supported for type ({type(value)})")
 
         if isinstance(value, MemorySegment):
             return self.base_address <= value.base_address and self.last_address >= value.last_address
@@ -67,7 +67,10 @@ class MemorySegment(ABC):
             return NotImplemented
 
         return (self.base_address <= value.base_address and value.base_address <= self.last_address) or (
-            self.base_address <= value.last_address and value.last_address <= self.last_address
+            self.base_address <= value.last_address
+            and value.last_address <= self.last_address
+            or self.__contains__(value)
+            or value.__contains__(self)
         )
 
     __rand__ = __and__
@@ -160,6 +163,9 @@ class RomSegment(MemorySegment):
         if size and (size < data_size):
             raise ValueError(f"size ({size}) is too small for data size ({data_size})")
 
+        if size and (size > data_size):
+            data = data + bytes(size - data_size)
+
         if not size:
             size = data_size
 
@@ -232,7 +238,6 @@ class MemoryMap:
                 raise ValueError(f"Argument: {segment} type ({type(segment)}) is invalid")
 
         ram_list = sorted(ram_list)
-        # rom_list = sorted(rom_list)
 
         # It's important for this code that the list be sorted, it depends on the line above
         i = 0
@@ -299,12 +304,14 @@ class MemoryMap:
                 except IndexError:
                     continue
             return  # If we can't find a mapped segment for our address we just silently drop the write, just like on real hardware!
-        elif isinstance(address, slice) and isinstance(value, (list, tuple, bytearray, bytes)) and all(isinstance(i, int) for i in value):
+        elif isinstance(address, slice) and isinstance(value, (bytearray, bytes)):
             index_range = range(*address.indices(ADDRESS_SPACE_SIZE))
             if len(index_range) > len(value):
                 raise ValueError("Slice can't be longer then source data")
             for i in index_range:
                 self.__setitem__(i, value[i - index_range.start])
+        else:
+            raise ValueError(f"address type ({type(address)}) or value type ({type(value)}) is not valid")
 
     def __iter__(self):
         """Allow looping over the memory map."""
