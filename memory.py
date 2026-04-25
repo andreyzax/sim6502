@@ -5,25 +5,33 @@ Classes:
     MemoryMap - Models the system's memory map
     MemorySegment - A contiguous region of memory
     RamSegment - A ram memory area
+    RomSegment - A rom memory area
 """
 
 from abc import ABC, abstractmethod
-from typing import overload
+from functools import total_ordering
+from pathlib import Path
+from typing import BinaryIO, Self, cast, overload
 
 PAGE_SIZE = 256
 PAGE_NR = 256  # 256 pages * 256 bytes per page = 64 KiB address space
+ADDRESS_SPACE_SIZE = 1024 * 64
 
 
+@total_ordering
 class MemorySegment(ABC):
     """A contiguous region of memory."""
 
     def __init__(self, base_page: int, npages: int) -> None:
         """Initialize mapping page range."""
+        if npages * PAGE_SIZE > ADDRESS_SPACE_SIZE:
+            raise ValueError(f"Allocation is to large, npages({npages}) * page size{PAGE_SIZE} > address space size ({ADDRESS_SPACE_SIZE})")
         if (base_page + npages) > (PAGE_NR):
             raise ValueError(
                 f"Allocation out of bounds, base_page({base_page}) + size({npages}) == {base_page + npages - 1} which is beyond the last page ({PAGE_NR - 1})"
             )
         self.base_page = base_page
+        self.last_page = base_page + npages - 1
         self._page_range = range(base_page, base_page + npages, 1)
 
     def _validate_address(self, address: int) -> None:
@@ -36,9 +44,43 @@ class MemorySegment(ABC):
             raise IndexError
 
     @abstractmethod
-    def __getitem__(self, address: int) -> int: ...
+    def __getitem__(self, address: int) -> int:
+        """Subscription operator read api."""
+        ...
+
     @abstractmethod
-    def __setitem__(self, address: int, value: int) -> None: ...
+    def __setitem__(self, address: int, value: int) -> None:
+        """Subscription operator write api."""
+        ...
+
+    def __contains__(self, value: Self) -> bool:
+        """Containment operator 'a in b' operator api."""
+        if not isinstance(value, MemorySegment):
+            return NotImplemented
+
+        return self.base_page <= value.base_page and self.last_page >= value.last_page
+
+    def __and__(self, value: Self) -> bool:
+        if not isinstance(value, MemorySegment):
+            return NotImplemented
+
+        return (self.base_page <= value.base_page and value.base_page <= self.last_page) or (
+            self.base_page <= value.last_page and value.last_page <= self.last_page
+        )
+
+    __rand__ = __and__
+
+    def __lt__(self, value: Self) -> bool:
+        if not isinstance(value, MemorySegment):
+            return NotImplemented
+
+        return self.base_page < value.base_page
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, MemorySegment):
+            return NotImplemented
+
+        return self.base_page == value.base_page
 
 
 class RamSegment(MemorySegment):
