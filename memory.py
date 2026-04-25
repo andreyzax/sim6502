@@ -304,3 +304,25 @@ class MemoryMap:
                 raise ValueError("Slice can't be longer then source data")
             for i in index_range:
                 self.__setitem__(i, value[i - index_range.start])
+
+    def __iter__(self):
+        """Allow looping over the memory map."""
+        address = 0
+        limit = ADDRESS_SPACE_SIZE - 1
+
+        while address <= limit:
+            yield self.__getitem__(address)
+            address += 1
+
+    def dump(self) -> str:
+        """Dump the contents of the memory map."""
+        content: list[str] = []
+        for address, value in enumerate(self):
+            if address % 16 == 0:
+                content.append(f"\n{address:04X}: {value:02X}")
+            elif address % 2 == 0:
+                content.append(" ")
+
+            content.append(f" {value:02X}")
+
+        return "".join(content)
