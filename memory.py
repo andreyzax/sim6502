@@ -109,6 +109,22 @@ class RamSegment(MemorySegment):
         offset = address - self.base_page * PAGE_SIZE
         self._backing_store[offset] = value
 
+    def merge(self, other: Self) -> Self:
+        """
+        Merge two ram segments.
+
+        Return a new RamSegment object spanning the beginning of the "low" object to
+        the end of the "high" object (including any un-allocated address space between them).
+
+        If one RamSegment is fully contained in another this will return a new object with
+        the same address space range as the containing object
+        """
+        new_base_page = min(self.base_page, other.base_page)
+        new_last_page = max(self.last_page, other.last_page)
+        new_npages = new_last_page - new_base_page + 1
+
+        return type(self)(new_base_page, new_npages)
+
 
 class RomSegment(MemorySegment):
     """A memory segment that is backed by rom."""
@@ -195,49 +211,53 @@ class MemoryMap:
     Since they are vital to the operation of the cpu, we always map the first two pages.
     """
 
-    def __init__(self, allocation_list: tuple[tuple[int, int], ...], default_value: int = 0xFF) -> None:
+    def __init__(self, *memory_segments: MemorySegment, default_value: int = 0xFF) -> None:
         """
-        Accept a variable length tuple of base and size tuples.
+        Accept a list of ram and rom segment objects.
 
-        Both the base and size are in units of PAGE_SIZE. Overlapping allocation ranges are silently merged.
+        Merge overlapping ram and rom segments separately but disallow ram overlapping with rom
         """
         self._default_value = default_value if default_value in range(0, 256) else 0xFF
 
-        self.allocation_ranges = tuple(
-            range(base, base + size, 1) for base, size in allocation_list
-        )  # Ranges are more convenient for us internally
+        ram_list: list[RamSegment] = []
+        rom_list: list[RomSegment] = []
 
-        self._allocation_bitmap = [False for _ in range(0, PAGE_NR)]
-        self._allocation_bitmap[:2] = (True, True)  # Always allocate the zero page and the stack page.
-
-        for r in self.allocation_ranges:
-            if r.stop > PAGE_NR:
-                raise RuntimeError(f"Allocation range {r} outside the bounds of memory")
-            for page in r:
-                self._allocation_bitmap[page] = True
-
-        self._memory_map: list[MemorySegment] = []
-        inside_range = False
-        size = 0
-        base_page = 0
-        for i, bit in enumerate(self._allocation_bitmap):  # Basic state machine here....
-            if bit:
-                if inside_range:  # Inside allocated range state, just keep counting it's size
-                    size += 1
-                else:  # Start of allocated range state, toggle to inside_range, record start page and reset size counter
-                    inside_range = True
-                    base_page = i
-                    size = 1
+        for segment in memory_segments:
+            if isinstance(segment, RamSegment):
+                ram_list.append(segment)
+            elif isinstance(segment, RomSegment):
+                rom_list.append(segment)
             else:
-                # Past the end of range state, toggle inside_range, Create ram segment and append to memory map, reset size counter.
-                if inside_range:
-                    inside_range = False
-                    self._memory_map.append(RamSegment(base_page=base_page, npages=size))
-                    size = 0
-                # Implicitly, this is the outside of range state, do nothing here
+                raise ValueError(f"Argument: {segment} type ({type(segment)}) is invalid")
 
-        if inside_range:
-            self._memory_map.append(RamSegment(base_page=base_page, npages=size))
+        ram_list = sorted(ram_list)
+        # rom_list = sorted(rom_list)
+
+        # It's important for this code that the list be sorted, it depends on the line above
+        i = 0
+        length = len(ram_list)
+        merged_ram_list: list[RamSegment] = []
+        if length > 1:
+            while i < length - 1:  # we iterate to the second to last element since we can't merge the last element with anything.
+                if ram_list[i] & ram_list[i + 1]:
+                    merged_ram_list.append(ram_list[i].merge(ram_list[i + 1]))
+                    i += 2
+                else:
+                    merged_ram_list.append(ram_list[i])
+                    i += 1
+            if i < length:  # Take care of the last element if it's not merged
+                merged_ram_list.append(ram_list[i])
+        else:
+            merged_ram_list = ram_list
+
+        self._memory_map: list[MemorySegment] = list(merged_ram_list)
+
+        for rom_segment in rom_list:
+            for segment in self._memory_map:
+                if rom_segment & segment:
+                    raise RuntimeError(f"Can't allocate RomSegment ({rom_segment}), it overlaps with segment ({segment})")
+
+            self._memory_map.append(rom_segment)
 
     @overload
     def __getitem__(self, address: int) -> int: ...
