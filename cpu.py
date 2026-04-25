@@ -715,20 +715,13 @@ class CPU:
         ins = self._decode()
         self.execute_instruction(ins)
 
-    def run(self) -> None:
+    def run(self, trap_handler: Callable[["CPU"]] | None) -> None:
         """Start the cpu's run loop, we only stop due to exceptions."""
         try:
             while True:
                 self.step()
         except CPUTrap as ctx:
-            # This all should probably be a callable passed in to to run()
-            print(f"""Execution stopped:
-                pc=0x{ctx.cpu.pc:X}
-                s=0x{ctx.cpu.s:X}
-                a=0x{ctx.cpu.a:X},x=0x{ctx.cpu.x:X},y=0x{ctx.cpu.y:X}
-                flags:   NV-BDIZC
-                         {"#" if ctx.cpu.p.negative else " "}{"#" if ctx.cpu.p.overflow else " "}##{"#" if ctx.cpu.p.decimal else " "}{"#" if ctx.cpu.p.interrupt_disable else " "}{"#" if ctx.cpu.p.zero else " "}{"#" if ctx.cpu.p.carry else " "}
-                """)
-
-            # print("Memory Dump:\n--------------------------------------")
-            # print(ctx.cpu.memory)
+            if trap_handler is not None:
+                trap_handler(ctx.cpu)
+            else:
+                raise
