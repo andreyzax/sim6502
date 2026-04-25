@@ -5,43 +5,37 @@ from memory import MemoryMap, RamSegment, PAGE_NR, PAGE_SIZE, RomSegment
 
 @pytest.fixture(scope="session")
 def simple_memory_map() -> MemoryMap:
-    return MemoryMap(((0, 10),), additional_memory_segments=(RomSegment.from_bytes(255, b"\xef" * 256),))
+    return MemoryMap(
+        RamSegment(0, 10),
+        RomSegment.from_bytes(255, b"\xef" * 256),
+    )
 
 
 @pytest.fixture(scope="session")
 def disjoint_memory_map() -> MemoryMap:
-    return MemoryMap(((0, 3), (253, 3)))
+    return MemoryMap(RamSegment(0, 3), RamSegment(253, 3))
 
 
 @pytest.fixture(scope="session")
 def overlapping_memory_map() -> MemoryMap:
-    return MemoryMap(((0, 5), (3, 5)))
+    return MemoryMap(RamSegment(0, 5), RamSegment(3, 5))
 
 
 def test_memory_map_simple_allocation(simple_memory_map: MemoryMap):
     size = 10
     mm = simple_memory_map
 
-    assert len(mm._allocation_bitmap) == PAGE_NR
-    assert all(mm._allocation_bitmap[0 : size - 1])
-    assert not any(mm._allocation_bitmap[size:])
     assert len(mm._memory_map) == 2
 
 
 def test_disjoint_mm_allocation(disjoint_memory_map: MemoryMap):
     mm = disjoint_memory_map
 
-    assert all(mm._allocation_bitmap[:3])
-    assert all(mm._allocation_bitmap[253:])
-    assert not any(mm._allocation_bitmap[3:253])
     assert len(mm._memory_map) == 2
 
 
 def test_overlapping_mm_allocation(overlapping_memory_map: MemoryMap):
     mm = overlapping_memory_map
-
-    assert all(mm._allocation_bitmap[:8])
-    assert not any(mm._allocation_bitmap[8:])
 
     assert len(mm._memory_map) == 1
     assert mm._memory_map[0]._page_range.start == 0
