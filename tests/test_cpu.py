@@ -1588,9 +1588,9 @@ def test_jump_instructions(full_mem_system: CPU):
     cpu.s = 0xA0
     cpu.execute_instruction(ins)
     assert cpu.pc == 0x2030
-    assert cpu.s == 0xA2
-    assert cpu.memory[0x100 | cpu.s - 1] == 0xAD
-    assert cpu.memory[0x100 | cpu.s - 2] == 0xDE
+    assert cpu.s == 0x9E
+    assert cpu.memory[0x100 | cpu.s + 1] == 0xAD
+    assert cpu.memory[0x100 | cpu.s + 2] == 0xDE
 
     ins = Instruction(op=Operation.RTS, mode=AddressMode.Implicit)
     cpu.s = 0xFD

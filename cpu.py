@@ -445,8 +445,8 @@ class CPU:
             # (the address of it's operand's high byte) and RTS then *increments* the pulled address
             # to correct it and returns to the next instruction.
             self.memory[0x100 + self.s] = (self.pc - 1) >> 8
-            self.memory[0x100 + self.s + 1] = (self.pc - 1) & 0xFF
-            self.s += 2
+            self.memory[0x100 + self.s - 1] = (self.pc - 1) & 0xFF
+            self.s -= 2
 
         self.pc = operand
 
