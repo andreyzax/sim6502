@@ -439,7 +439,6 @@ class CPU:
                 operand = (high_byte << 8) | low_byte
             else:
                 operand = self._fetch_16bit(ins.operand)
-        # operand = ins.operand if ins.mode == AddressMode.Absolute else self._fetch_16bit(ins.operand)
 
         if ins.operation == Operation.JSR:
             # self.pc - 1 isn't a bug! JSR stores the address *before* the next instruction
