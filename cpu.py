@@ -126,7 +126,7 @@ class CPU:
             return self._address_mode_dispatch[ins.mode](ins.operand)
 
     def _compute_address(self, ins: Instruction) -> int:
-        if not ins.operand:
+        if ins.operand is None:
             raise RuntimeError(f"Can't compute address for instruction: {ins} without an operand")
 
         match ins.mode:
