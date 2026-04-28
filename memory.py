@@ -261,6 +261,7 @@ class MemoryMap:
         # This is here to fix a circular dependency issue
         from mmio import Device
 
+        self.hardware_map: list[Device] = []
         for other_segment in other_list:
             for segment in self._memory_map:
                 if other_segment & segment:
