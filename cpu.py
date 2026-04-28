@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from assembly import AddressMode, Instruction, Operation
+from console import Keyboard
 from memory import MemoryMap
 
 
@@ -545,6 +546,11 @@ class CPU:
         self._init_s = s
         self._init_p = self._StatusRegister()
         self.memory = memory
+
+        for segment in self.memory.hardware_map:
+            if isinstance(segment, Keyboard):
+                segment.on_reset = self.reset
+
         self.reset()
 
         self._instruction_dispatch: dict[Operation, Callable[[Instruction], None]] = {

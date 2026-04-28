@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-from cpu import CPU
+from console import Keyboard, Video
+from cpu import CPU, CPUTrap
 from memory import MemoryMap, RamSegment, RomSegment
 
 
@@ -18,11 +19,17 @@ def trap_handler(cpu: CPU):
 
 
 def main():
-    rom = RomSegment.from_bytes(4, bytes_source=(b"\xa9\x01\x8d\x00\x02\xa9\x05\x8d\x01\x02\xa9\x08\x8d\x02\x02\x00"))
-    mm = MemoryMap(RamSegment(0, 4), rom)
-    cpu = CPU(memory=mm, pc=0x400)
+    """Emulate apple 1 system."""
+    monitor_rom = RomSegment.from_binary_file(0xFF00, "wozmon.bin")
+    basic_rom = RomSegment.from_binary_file(0xE000, "basic.bin")
+    mm = MemoryMap(RamSegment(0, 0x7FFF), Video(), Keyboard(), monitor_rom, basic_rom)
+    reset_addr = mm[0xFFFD] << 8 | mm[0xFFFC]
+    cpu = CPU(memory=mm, pc=reset_addr)
 
-    cpu.run(trap_handler)
+    try:
+        cpu.run()
+    except CPUTrap as trap:
+        trap_handler(trap.cpu)
 
 
 if __name__ == "__main__":

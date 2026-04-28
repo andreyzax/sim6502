@@ -227,13 +227,13 @@ class MemoryMap:
         self._default_value = default_value if default_value in range(0, 256) else 0xFF
 
         ram_list: list[RamSegment] = []
-        rom_list: list[RomSegment] = []
+        other_list: list[MemorySegment] = []
 
         for segment in memory_segments:
             if isinstance(segment, RamSegment):
                 ram_list.append(segment)
-            elif isinstance(segment, RomSegment):
-                rom_list.append(segment)
+            elif isinstance(segment, MemorySegment):
+                other_list.append(segment)
             else:
                 raise ValueError(f"Argument: {segment} type ({type(segment)}) is invalid")
 
@@ -258,12 +258,17 @@ class MemoryMap:
 
         self._memory_map: list[MemorySegment] = list(merged_ram_list)
 
-        for rom_segment in rom_list:
-            for segment in self._memory_map:
-                if rom_segment & segment:
-                    raise RuntimeError(f"Can't allocate RomSegment ({rom_segment}), it overlaps with segment ({segment})")
+        # This is here to fix a circular dependency issue
+        from mmio import Device
 
-            self._memory_map.append(rom_segment)
+        for other_segment in other_list:
+            for segment in self._memory_map:
+                if other_segment & segment:
+                    raise RuntimeError(f"Can't allocate segment ({other_segment}), it overlaps with segment ({segment})")
+
+            self._memory_map.append(other_segment)
+
+            self.hardware_map = [device for device in self._memory_map if isinstance(device, Device)]
 
     @overload
     def __getitem__(self, address: int) -> int: ...
@@ -321,6 +326,11 @@ class MemoryMap:
         while address <= limit:
             yield self.__getitem__(address)
             address += 1
+
+    def poll_hardware(self) -> None:
+        """Poll all hardware devices for input from the host."""
+        for device in self.hardware_map:
+            device.poll_host()
 
     def dump(self) -> str:
         """Dump the contents of the memory map."""
