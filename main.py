@@ -20,8 +20,8 @@ def trap_handler(cpu: CPU):
 
 def main():
     """Emulate apple 1 system."""
-    monitor_rom = RomSegment.from_binary_file(0xFF00, "wozmon.bin")
-    basic_rom = RomSegment.from_binary_file(0xE000, "basic.bin")
+    monitor_rom = RomSegment.from_binary_file(0xFF00, "bin/wozmon.bin")
+    basic_rom = RomSegment.from_binary_file(0xE000, "bin/basic.bin")
     mm = MemoryMap(RamSegment(0, 0x7FFF), Video(), Keyboard(), monitor_rom, basic_rom)
     reset_addr = mm[0xFFFD] << 8 | mm[0xFFFC]
     cpu = CPU(memory=mm, pc=reset_addr)

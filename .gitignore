@@ -11,3 +11,6 @@ wheels/
 
 # pytest-cov
 .coverage
+
+# test images
+bin/
