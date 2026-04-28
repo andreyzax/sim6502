@@ -9,6 +9,7 @@ Classes:
 """
 
 from abc import ABC, abstractmethod
+from bisect import bisect_right
 from functools import total_ordering
 from pathlib import Path
 from typing import BinaryIO, Self, cast, overload
@@ -269,7 +270,10 @@ class MemoryMap:
 
             self._memory_map.append(other_segment)
 
-            self.hardware_map = [device for device in self._memory_map if isinstance(device, Device)]
+        self._memory_map = sorted(self._memory_map)
+        self.hardware_map = [device for device in self._memory_map if isinstance(device, Device)]
+
+        self._sorted_base_addresses = tuple(segment.base_address for segment in self._memory_map)
 
     @overload
     def __getitem__(self, address: int) -> int: ...
@@ -279,17 +283,15 @@ class MemoryMap:
     def __getitem__(self, address: int | slice) -> int | bytes:
         """Read data from to our memory, can ba single byte or a bytes like object for slice operations."""
         if isinstance(address, int):
-            for segment in self._memory_map:
-                try:
-                    return segment[address]
-                except IndexError:
-                    continue
+            segment_idx = bisect_right(self._sorted_base_addresses, address) - 1
+            if segment_idx >= 0 and address <= self._memory_map[segment_idx].last_address:
+                return self._memory_map[segment_idx][address]
+
             return self._default_value
         else:
             index_range = range(*address.indices(ADDRESS_SPACE_SIZE))
-            return bytes(self.__getitem__(i) for i in index_range)  # Yes we recursively call ourself,
-            # shouldn't be an issue since this always calls the other branch of the function
-            # which is non recursive.
+            return bytes([self.__getitem__(i) for i in index_range])  # Yes we recursively call ourselves,
+            # shouldn't be an issue since this always calls the other branch of the function which is non recursive.
 
     @overload
     def __setitem__(self, address: int, value: int) -> None: ...

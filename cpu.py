@@ -126,7 +126,7 @@ class CPU:
         if ins.mode == AddressMode.Immediate or ins.mode == AddressMode.Relative:
             return ins.operand
         else:
-            return self._address_mode_dispatch[ins.mode](ins.operand)
+            return self._address_mode_dispatch[ins.mode.value](ins.operand)
 
     def _compute_address(self, ins: Instruction) -> int:
         if ins.operand is None:
@@ -555,79 +555,77 @@ class CPU:
 
         self.reset()
 
-        self._instruction_dispatch: dict[Operation, Callable[[Instruction], None]] = {
-            Operation.NOP: lambda _: None,
-            Operation.TAX: self._do_register_instructions,
-            Operation.TXA: self._do_register_instructions,
-            Operation.TAY: self._do_register_instructions,
-            Operation.TYA: self._do_register_instructions,
-            Operation.INX: self._do_register_instructions,
-            Operation.INY: self._do_register_instructions,
-            Operation.INC: self._do_mem_inc_dec_instructions,
-            Operation.DEC: self._do_mem_inc_dec_instructions,
-            Operation.DEX: self._do_register_instructions,
-            Operation.DEY: self._do_register_instructions,
-            Operation.TXS: self._do_stack_instructions,
-            Operation.TSX: self._do_stack_instructions,
-            Operation.PHA: self._do_stack_instructions,
-            Operation.PLA: self._do_stack_instructions,
-            Operation.PHP: self._do_stack_instructions,
-            Operation.PLP: self._do_stack_instructions,
-            Operation.CLC: self._do_status_register_instructions,
-            Operation.CLI: self._do_status_register_instructions,
-            Operation.CLV: self._do_status_register_instructions,
-            Operation.CLD: self._do_status_register_instructions,
-            Operation.SEC: self._do_status_register_instructions,
-            Operation.SEI: self._do_status_register_instructions,
-            Operation.SED: self._do_status_register_instructions,
-            Operation.ADC: self._do_arithmetic_instructions,
-            Operation.SBC: self._do_arithmetic_instructions,
-            Operation.LDA: self._do_load_store_instructions,
-            Operation.LDX: self._do_load_store_instructions,
-            Operation.LDY: self._do_load_store_instructions,
-            Operation.STA: self._do_load_store_instructions,
-            Operation.STX: self._do_load_store_instructions,
-            Operation.STY: self._do_load_store_instructions,
-            Operation.INC: self._do_mem_inc_dec_instructions,
-            Operation.DEC: self._do_mem_inc_dec_instructions,
-            Operation.CMP: self._do_compare_instructions,
-            Operation.CPX: self._do_compare_instructions,
-            Operation.CPY: self._do_compare_instructions,
-            Operation.ASL: self._do_bit_shift_instructions,
-            Operation.LSR: self._do_bit_shift_instructions,
-            Operation.ROL: self._do_bit_shift_instructions,
-            Operation.ROR: self._do_bit_shift_instructions,
-            Operation.AND: self._do_bitwise_instructions,
-            Operation.ORA: self._do_bitwise_instructions,
-            Operation.EOR: self._do_bitwise_instructions,
-            Operation.BIT: self._do_bit_instruction,
-            Operation.BCC: self._do_branch_instructions,
-            Operation.BCS: self._do_branch_instructions,
-            Operation.BEQ: self._do_branch_instructions,
-            Operation.BMI: self._do_branch_instructions,
-            Operation.BNE: self._do_branch_instructions,
-            Operation.BPL: self._do_branch_instructions,
-            Operation.BMI: self._do_branch_instructions,
-            Operation.BVC: self._do_branch_instructions,
-            Operation.BVS: self._do_branch_instructions,
-            Operation.JMP: self._do_jump_instructions,
-            Operation.JSR: self._do_jump_instructions,
-            Operation.RTS: self._do_rts_instruction,
-            Operation.BRK: self._do_brk_instruction,
-            Operation.RTI: self._do_rti_instruction,
-        }
+        self._instruction_dispatch: list[Callable[[Instruction], None]] = [lambda ins: None] * len(Operation)
+        self._instruction_dispatch[Operation.ADC.value] = self._do_arithmetic_instructions
+        self._instruction_dispatch[Operation.AND.value] = self._do_bitwise_instructions
+        self._instruction_dispatch[Operation.ASL.value] = self._do_bit_shift_instructions
+        self._instruction_dispatch[Operation.BCC.value] = self._do_branch_instructions
+        self._instruction_dispatch[Operation.BCS.value] = self._do_branch_instructions
+        self._instruction_dispatch[Operation.BEQ.value] = self._do_branch_instructions
+        self._instruction_dispatch[Operation.BIT.value] = self._do_bit_instruction
+        self._instruction_dispatch[Operation.BMI.value] = self._do_branch_instructions
+        self._instruction_dispatch[Operation.BMI.value] = self._do_branch_instructions
+        self._instruction_dispatch[Operation.BNE.value] = self._do_branch_instructions
+        self._instruction_dispatch[Operation.BPL.value] = self._do_branch_instructions
+        self._instruction_dispatch[Operation.BRK.value] = self._do_brk_instruction
+        self._instruction_dispatch[Operation.BVC.value] = self._do_branch_instructions
+        self._instruction_dispatch[Operation.BVS.value] = self._do_branch_instructions
+        self._instruction_dispatch[Operation.CLC.value] = self._do_status_register_instructions
+        self._instruction_dispatch[Operation.CLD.value] = self._do_status_register_instructions
+        self._instruction_dispatch[Operation.CLI.value] = self._do_status_register_instructions
+        self._instruction_dispatch[Operation.CLV.value] = self._do_status_register_instructions
+        self._instruction_dispatch[Operation.CMP.value] = self._do_compare_instructions
+        self._instruction_dispatch[Operation.CPX.value] = self._do_compare_instructions
+        self._instruction_dispatch[Operation.CPY.value] = self._do_compare_instructions
+        self._instruction_dispatch[Operation.DEC.value] = self._do_mem_inc_dec_instructions
+        self._instruction_dispatch[Operation.DEC.value] = self._do_mem_inc_dec_instructions
+        self._instruction_dispatch[Operation.DEX.value] = self._do_register_instructions
+        self._instruction_dispatch[Operation.DEY.value] = self._do_register_instructions
+        self._instruction_dispatch[Operation.EOR.value] = self._do_bitwise_instructions
+        self._instruction_dispatch[Operation.INC.value] = self._do_mem_inc_dec_instructions
+        self._instruction_dispatch[Operation.INC.value] = self._do_mem_inc_dec_instructions
+        self._instruction_dispatch[Operation.INX.value] = self._do_register_instructions
+        self._instruction_dispatch[Operation.INY.value] = self._do_register_instructions
+        self._instruction_dispatch[Operation.JMP.value] = self._do_jump_instructions
+        self._instruction_dispatch[Operation.JSR.value] = self._do_jump_instructions
+        self._instruction_dispatch[Operation.LDA.value] = self._do_load_store_instructions
+        self._instruction_dispatch[Operation.LDX.value] = self._do_load_store_instructions
+        self._instruction_dispatch[Operation.LDY.value] = self._do_load_store_instructions
+        self._instruction_dispatch[Operation.LSR.value] = self._do_bit_shift_instructions
+        self._instruction_dispatch[Operation.NOP.value] = lambda _: None
+        self._instruction_dispatch[Operation.ORA.value] = self._do_bitwise_instructions
+        self._instruction_dispatch[Operation.PHA.value] = self._do_stack_instructions
+        self._instruction_dispatch[Operation.PHP.value] = self._do_stack_instructions
+        self._instruction_dispatch[Operation.PLA.value] = self._do_stack_instructions
+        self._instruction_dispatch[Operation.PLP.value] = self._do_stack_instructions
+        self._instruction_dispatch[Operation.ROL.value] = self._do_bit_shift_instructions
+        self._instruction_dispatch[Operation.ROR.value] = self._do_bit_shift_instructions
+        self._instruction_dispatch[Operation.RTI.value] = self._do_rti_instruction
+        self._instruction_dispatch[Operation.RTS.value] = self._do_rts_instruction
+        self._instruction_dispatch[Operation.SBC.value] = self._do_arithmetic_instructions
+        self._instruction_dispatch[Operation.SEC.value] = self._do_status_register_instructions
+        self._instruction_dispatch[Operation.SED.value] = self._do_status_register_instructions
+        self._instruction_dispatch[Operation.SEI.value] = self._do_status_register_instructions
+        self._instruction_dispatch[Operation.STA.value] = self._do_load_store_instructions
+        self._instruction_dispatch[Operation.STX.value] = self._do_load_store_instructions
+        self._instruction_dispatch[Operation.STY.value] = self._do_load_store_instructions
+        self._instruction_dispatch[Operation.TAX.value] = self._do_register_instructions
+        self._instruction_dispatch[Operation.TAY.value] = self._do_register_instructions
+        self._instruction_dispatch[Operation.TSX.value] = self._do_stack_instructions
+        self._instruction_dispatch[Operation.TXA.value] = self._do_register_instructions
+        self._instruction_dispatch[Operation.TXS.value] = self._do_stack_instructions
+        self._instruction_dispatch[Operation.TYA.value] = self._do_register_instructions
 
-        self._address_mode_dispatch: dict[AddressMode, Callable[[int], int]] = {
-            AddressMode.Absolute: lambda address: self.memory[address & 0xFFFF],
-            AddressMode.AbsoluteX: self._fetch_absolute_x,
-            AddressMode.AbsoluteY: self._fetch_absolute_y,
-            AddressMode.ZeroPage: lambda address: self.memory[address & 0xFF],
-            AddressMode.ZeroPageX: self._fetch_zero_pagex,
-            AddressMode.ZeroPageY: self._fetch_zero_pagey,
-            AddressMode.Indirect: self._fetch_indirect,
-            AddressMode.IndirectX: self._fetch_indirect_zero_page_x,
-            AddressMode.IndirectY: self._fetch_indirect_zero_page_y,
-        }
+        self._address_mode_dispatch: list[Callable[[int], int]] = [lambda _: 0] * len(AddressMode)
+        self._address_mode_dispatch[AddressMode.Absolute.value] = lambda address: self.memory[address & 0xFFFF]
+        self._address_mode_dispatch[AddressMode.AbsoluteX.value] = self._fetch_absolute_x
+        self._address_mode_dispatch[AddressMode.AbsoluteY.value] = self._fetch_absolute_y
+        self._address_mode_dispatch[AddressMode.ZeroPage.value] = lambda address: self.memory[address & 0xFF]
+        self._address_mode_dispatch[AddressMode.ZeroPageX.value] = self._fetch_zero_pagex
+        self._address_mode_dispatch[AddressMode.ZeroPageY.value] = self._fetch_zero_pagey
+        self._address_mode_dispatch[AddressMode.Indirect.value] = self._fetch_indirect
+        self._address_mode_dispatch[AddressMode.IndirectX.value] = self._fetch_indirect_zero_page_x
+        self._address_mode_dispatch[AddressMode.IndirectY.value] = self._fetch_indirect_zero_page_y
 
     @property
     def pc(self) -> int:
@@ -708,14 +706,14 @@ class CPU:
         """Execute a single instruction. Update registers and memory as per ISA requirements."""
         self.pc += ins.size  # Very important we do this before dispatch to make branches, jumps & JSR work properly
         try:
-            self._instruction_dispatch[ins.operation](ins)
+            self._instruction_dispatch[ins.operation.value](ins)
         except KeyError as e:
             raise RuntimeError(f"Operation: <{ins.operation}> is not implemented.") from e
 
     def _decode(self) -> Instruction:
-        return Instruction.decode(self.memory[self.pc : self.pc + 3])  # Luckily for us the maximum instruction size on the 6502 is 3 bytes
-        # So we feed Instruction.decode() a small 3 element slice that's guarantee to contain the whole instruction, Instruction.decode()
-        # will simply ignore any extra bytes if the instruction is less then 3 bytes long
+        # Always feed Instruction.decode the next 3 bytes since that is the maximum 6502 instruction size.
+        # The execute_instruction method will only advance the program counter by the actual decoded instruction size.
+        return Instruction.decode(bytes([self.memory[self.pc], self.memory[self.pc + 1], self.memory[self.pc + 2]]))
 
     def load(self, base: int, source: bytes | BufferedIOBase) -> None:
         """Load data into memory."""

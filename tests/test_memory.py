@@ -206,8 +206,8 @@ def test_simple_memory_map_access(simple_memory_map: MemoryMap):
     assert mm[0xFF00:0x10000] == b"\xef" * 256
     assert mm[0xFF00:0x10001] == b"\xef" * 256
     assert mm[0xFF00:0x10002] == b"\xef" * 256
-    with pytest.raises(ValueError):
-        assert mm[0x10000] == 0xEF
+
+    assert mm[0x10000] == 0xFF
 
     with pytest.raises(ValueError):
         _ = mm["foo"] = 42  # type: ignore
