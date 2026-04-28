@@ -4,7 +4,7 @@
         "adapter": "Debugpy",
         "request": "launch",
         "label": "debug current file",
-        "program": "{file}",
+        "program": "$ZED_FILE",
         "justMyCode": false,
     },
 ]
