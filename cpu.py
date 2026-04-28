@@ -14,6 +14,7 @@ Arithmetic & integer representation note:
 """
 
 import copy
+import itertools
 from dataclasses import dataclass
 from typing import Callable
 
@@ -722,8 +723,11 @@ class CPU:
 
     def run(self, trap_handler: Callable[["CPU"]] | None) -> None:
         """Start the cpu's run loop, we only stop due to exceptions."""
+        counter = itertools.count()
         try:
-            while True:
+            for i in counter:
+                if i % 10000 == 0:
+                    self.memory.poll_hardware()
                 self.step()
         except CPUTrap as ctx:
             if trap_handler is not None:
