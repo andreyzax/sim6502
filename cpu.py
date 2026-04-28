@@ -16,11 +16,12 @@ Arithmetic & integer representation note:
 import copy
 import itertools
 from dataclasses import dataclass
+from io import BufferedIOBase
 from typing import Callable
 
 from assembly import AddressMode, Instruction, Operation
 from console import Keyboard
-from memory import MemoryMap
+from memory import ADDRESS_SPACE_SIZE, MemoryMap
 
 
 class CPUTrap(Exception):
@@ -715,6 +716,22 @@ class CPU:
         return Instruction.decode(self.memory[self.pc : self.pc + 3])  # Luckily for us the maximum instruction size on the 6502 is 3 bytes
         # So we feed Instruction.decode() a small 3 element slice that's guarantee to contain the whole instruction, Instruction.decode()
         # will simply ignore any extra bytes if the instruction is less then 3 bytes long
+
+    def load(self, base: int, source: bytes | BufferedIOBase) -> None:
+        """Load data into memory."""
+        if isinstance(source, BufferedIOBase):
+            data = source.read()
+            data_size = len(data)
+        elif isinstance(source, bytes):
+            data = source
+            data_size = len(data)
+        else:
+            raise RuntimeError(f"Unsupported source ({source}) argument")
+
+        if data_size > ADDRESS_SPACE_SIZE:
+            raise RuntimeError("data to big to fit in memory")
+
+        self.memory[base : base + data_size] = data
 
     def step(self) -> None:
         """Execute one instruction from the current PC location and advance the PC to the next instruction."""
