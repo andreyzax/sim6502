@@ -20,6 +20,8 @@ KBDCR = 0xD011
 DSP = 0xD012
 DSPCR = 0xD013
 
+LAST_COLUMN = 39
+
 KEY_CR = 0x0D
 KEY_LF = 0x0A
 KEY_BACKSLASH = 0x5C
@@ -114,12 +116,25 @@ class Keyboard(Device):
 
 class Video(Device):
     class DSP(Register):
+        def __init__(self) -> None:
+            self.cursor = 0
+
         def read(self) -> int:
             return 0x0
 
         def write(self, value: int) -> None:
-            output = "\n" if (value & 0x7F) == KEY_CR else chr(value & 0x7F)
-            print(output, end="", flush=True)
+            ch = value & 0x7F
+            if ch == KEY_CR:
+                print("\n", end="", flush=True)
+                self.cursor = 0
+                return
+
+            if self.cursor > LAST_COLUMN:
+                print("\n", end="", flush=True)
+                self.cursor = 0
+
+            print(chr(ch), end="", flush=True)
+            self.cursor += 1
 
     class DSPCR(Register):
         def __init__(self) -> None:
