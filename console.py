@@ -86,9 +86,6 @@ class Keyboard(Device):
             ch = ord(sys.stdin.read(1).upper())
             if ch == KEY_LF:
                 self.input_queue.append(KEY_CR)
-            elif ch == KEY_ESC:
-                self.input_queue.append(KEY_BACKSLASH)
-                self.input_queue.append(KEY_ESC)
             elif ch == KEY_CTRL_R:
                 if self.on_reset:
                     self.on_reset()
