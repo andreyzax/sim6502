@@ -11,6 +11,8 @@ A simple MOS 6502 CPU emulator written in Python.
 - Emulator core complete.
 - Apple 1 base hardware functional.
 - Wozmon, Apple BASIC & several third party applications confirmed as working.
+- Currently only tested on Linux (But I strongly believe any unix like system would work fine).
+- Porting to other platforms should be easy, the only requirement is some kind of terminal like interface and the ability to poll for keyboard input.
 
 ## **Goals:**
 
