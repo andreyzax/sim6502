@@ -8,9 +8,9 @@ A simple MOS 6502 CPU emulator written in Python.
 
 ## **Status:**
 
-- Emulator core, complete
-- Apple 1 base hardware, functional
-- Wozmon, Apple BASIC & several third party applications confirmed as working
+- Emulator core complete.
+- Apple 1 base hardware functional.
+- Wozmon, Apple BASIC & several third party applications confirmed as working.
 
 ## **Goals:**
 
