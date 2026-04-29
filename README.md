@@ -43,8 +43,8 @@ Requirements:
 ### **Clone the repository:**
 
 ```bash
-git clone <repo-url>
-cd <repo-name>
+git clone https://github.com/andreyzax/sim6502.git
+cd sim6502
 ```
 
 ### **Run the test suite:**
