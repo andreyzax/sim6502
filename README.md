@@ -27,7 +27,7 @@ A simple MOS 6502 CPU emulator written in Python.
 ## **Long-term goals:**
 
 - Multiple interfaces, TUI & GUI.
-- Multiple emulation targets (Apple ||, Commodore 64, NES,...).
+- Multiple emulation targets (Apple II, Commodore 64, NES,...).
 
 ## **Usage:**
 
