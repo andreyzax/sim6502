@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from console import Keyboard, Video
 from cpu import CPU, CPUTrap
