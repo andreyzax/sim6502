@@ -3,7 +3,7 @@ name = "sim6502"
 version = "0.1.0"
 description = "A simple MOS 6502 CPU emulator written in Python."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 dependencies = []
 
 [tool.ruff]
@@ -18,9 +18,39 @@ exclude = [ "tests" ]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 
+[tool.poe.executor]
+type = "uv"
+
+[tool.poe.tasks]
+profile = "python tools/profile_.py"
+
+[tool.poe.tasks.test-py311]
+cmd = "pytest -s --cov memory --cov cpu  --cov assembly --cov mmio --cov-branch  --cov-report=term-missing   ./tests/"
+executor = { isolated = true, python = "3.11" }
+
+[tool.poe.tasks.test-py312]
+cmd = "pytest -s --cov memory --cov cpu  --cov assembly --cov mmio --cov-branch  --cov-report=term-missing   ./tests/"
+executor = { isolated = true, python = "3.12" }
+
+[tool.poe.tasks.test-py313]
+cmd = "pytest -s --cov memory --cov cpu  --cov assembly --cov mmio --cov-branch  --cov-report=term-missing   ./tests/"
+executor = { isolated = true, python = "3.13" }
+
+[tool.poe.tasks.test-py314]
+cmd = "pytest -s --cov memory --cov cpu  --cov assembly --cov mmio --cov-branch  --cov-report=term-missing   ./tests/"
+executor = { isolated = true, python = "3.14" }
+
+[tool.poe.tasks.test-all]
+sequence = ["test-py311", "test-py312", "test-py313", "test-py314"]
+
+[tool.poe.tasks.test]
+cmd = "pytest -s --cov memory --cov cpu  --cov assembly --cov mmio --cov-branch  --cov-report=term-missing   ./tests/"
+
+
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
     "pytest-cov >= 7.1.0",
-    "pytest-mock >= 3.15.1"
+    "pytest-mock >= 3.15.1",
 ]
