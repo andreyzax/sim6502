@@ -1,12 +1,23 @@
 #!/usr/bin/env python3
 
+from argparse import ArgumentParser
+
+import config
 from console import Keyboard, Video
 from cpu import CPU, CPUTrap
 from memory import MemoryMap, RamSegment, RomSegment
 
 
+def process_arguments() -> None:
+    parser = ArgumentParser()
+    parser.add_argument("--metrics", "-m", action="store_true", help="Enable runtime metrics collection")
+
+    args = parser.parse_args()
+    config.enable_runtime_perf_metrics = args.metrics
+
+
 def trap_handler(cpu: CPU):
-    print(f"""Execution stopped:
+    print(f"""\nExecution stopped:
         pc=0x{cpu.pc:X}
         s=0x{cpu.s:X}
         a=0x{cpu.a:X},x=0x{cpu.x:X},y=0x{cpu.y:X}
@@ -20,6 +31,8 @@ def trap_handler(cpu: CPU):
 
 def main():
     """Emulate apple 1 system."""
+    process_arguments()
+
     monitor_rom = RomSegment.from_binary_file(0xFF00, "bin/wozmon.bin")
     basic_rom = RomSegment.from_binary_file(0xE000, "bin/basic.bin")
     mm = MemoryMap(RamSegment(0, 0x7FFF), Video(), Keyboard(), monitor_rom, basic_rom)

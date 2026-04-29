@@ -15,10 +15,12 @@ Arithmetic & integer representation note:
 
 import copy
 import itertools
+import time
 from dataclasses import dataclass
 from io import BufferedIOBase
 from typing import Callable
 
+import config
 from assembly import AddressMode, Instruction, Operation
 from console import Keyboard
 from memory import ADDRESS_SPACE_SIZE, MemoryMap
@@ -739,7 +741,23 @@ class CPU:
     def run(self) -> None:
         """Start the cpu's run loop, we only stop due to exceptions."""
         counter = itertools.count()
-        for i in counter:
-            if i % 10000 == 0:
-                self.memory.poll_hardware()
-            self.step()
+        runtime = 0
+        try:
+            for i in counter:
+                if config.enable_runtime_perf_metrics:
+                    start = time.perf_counter_ns()
+
+                if i % 10000 == 0:
+                    self.memory.poll_hardware()
+                self.step()
+                if config.enable_runtime_perf_metrics:
+                    runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable ]
+        except KeyboardInterrupt:
+            print("\nExecution stopped.")
+            if config.enable_runtime_perf_metrics:
+                instructions = next(counter)
+                ips = round(instructions / (runtime / 10**9))
+                avg_ins_time = runtime / instructions / 1000  # Show in microseconds
+                print(
+                    f"Runtime: {runtime / 10**9} seconds, instructions: {instructions}, ips: {ips:,}, average instruction time: {avg_ins_time:.3f}us"
+                )
