@@ -193,12 +193,14 @@ class CPU:
                 self.s = self.x
             case Operation.TSX:
                 self.x = self.s
+                self._update_flags(self.x)
             case Operation.PHA:
                 self.memory[0x100 + self.s] = self.a
                 self.s -= 1
             case Operation.PLA:
                 self.s += 1
                 self.a = self.memory[0x100 + self.s]
+                self._update_flags(self.a)
             case Operation.PHP:
                 flags = self.p._get_flags()
                 flags |= 1 << 4  # PHP sets the "b" flag
