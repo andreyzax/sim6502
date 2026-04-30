@@ -23,6 +23,7 @@ def process_arguments() -> None:
 def trap_handler(cpu: CPU):
     print(f"""\nExecution stopped:
         pc=0x{cpu.pc:X}
+        ins={cpu._decode()}
         s=0x{cpu.s:X}
         a=0x{cpu.a:X},x=0x{cpu.x:X},y=0x{cpu.y:X}
         flags:   NV-BDIZC
