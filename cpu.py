@@ -230,30 +230,60 @@ class CPU:
                 raise RuntimeError(f"Operation: {ins.operation} is not a valid status register operation")
 
     def _do_arithmetic_instructions(self, ins: Instruction) -> None:
-        if self.p.decimal:
-            raise RuntimeError("Decimal mode arithmetic not implemented")
+        decimal_correction_low = 0x6  # if ins.operation == Operation.ADC else 0xFA  # (~0x6  + 1) & 0xFF
+        decimal_correction_high = 0x60  # if ins.operation == Operation.ADC else 0xA0  # (~0x60 + 1) & 0xFF
 
         operand = self._fetch_operand(ins)
+        operand = operand if ins.operation == Operation.ADC else (~operand & 0xFF)
 
-        operand = (~operand & 0xFF) if ins.operation == Operation.SBC else operand
-        operand += int(self.p.carry) & 0xFF
+        # Save this here since we might overwrite this during the binary phase,
+        # but we need this for the decimal adjust phase.
+        orig_carry = self.p.carry
 
-        result = self.a + operand
+        result = self.a + operand + int(self.p.carry)
 
+        # set flags, this is for the binary operation,
+        # if we are in decimal mode some of these flags get adjusted in the decimal adjustment code.
+
+        # N flag
         self.p.negative = self._is_8bit_negative(result)
-        self.p.carry = result > 0xFF
+        # C flag
+        self.p.carry = result > 0xFF  # This might be reset if we are in decimal mode
 
-        self.p.overflow = False  # Pre-clear the flag to get correct behavior, we want this actively cleared if signed overflow didn't occur
-        # not just keep this unchanged
+        # Pre-clear the flag to get correct behavior, we want this actively cleared if signed overflow didn't occur
+        # # not just keep this unchanged.
+        self.p.overflow = False
+        # V flag
         if (self._is_8bit_negative(self.a) and self._is_8bit_negative(operand)) and not self._is_8bit_negative(result):
             self.p.overflow = True
         if (not self._is_8bit_negative(self.a) and not self._is_8bit_negative(operand)) and self._is_8bit_negative(result):
             self.p.overflow = True
 
-        self.a = result & 0xFF  # Make sure to keep this here *after* the overflow check, we need to use the old value there.
+        self.p.zero = (result & 0xFF) == 0
 
-        self.p.zero = self.a == 0  # We check this here against the final result since we need to mask off the value to know if it's zero,
-        # doing it here saves us one extra bitmask operation.
+        # Decimal adjustment
+        if self.p.decimal:
+            al = self.a & 0xF
+            ol = operand & 0xF
+
+            rl = al + ol + int(orig_carry)
+            if ins.operation == Operation.ADC and rl > 0x9:
+                result += decimal_correction_low
+            if ins.operation == Operation.SBC and rl < 0x10:  # Burrow check
+                result -= decimal_correction_low
+
+            if ins.operation == Operation.ADC and result > 0x99:
+                result += decimal_correction_high
+            if ins.operation == Operation.SBC and result < 0x100:
+                result -= decimal_correction_high
+
+            # Set decimal carry for ADC (after decimal correction)
+            # For SBC the correct carry is implicitly the binary carry that we set before so we don't do anything
+            # for that in the decimal adjustment code.
+            if ins.operation == Operation.ADC:
+                self.p.carry = result > 0x99
+
+        self.a = result
 
     def _do_load_store_instructions(self, ins: Instruction) -> None:
         if ins.operation in (Operation.LDA, Operation.LDX, Operation.LDY):

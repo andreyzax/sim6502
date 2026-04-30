@@ -709,6 +709,122 @@ def test_address_modes(full_mem_system: CPU):
     assert cpu.a == 42
 
 
+def test_bcd_mode(system: CPU):
+    cpu = system
+
+    cpu.execute_instruction(Instruction(op=Operation.CLC, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.CLV, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.SED, mode=AddressMode.Implicit))
+    cpu.a = 0x40
+    initial_pc = cpu.pc
+    ins = Instruction(op=Operation.ADC, mode=AddressMode.Immediate, operand=0x2)
+    cpu.execute_instruction(ins)
+    assert (cpu.pc - initial_pc) == ins.size
+    assert cpu.a == 0x42
+    assert not cpu.p.carry
+    assert not cpu.p.overflow
+    assert not cpu.p.negative
+    assert cpu.p.decimal
+    assert not cpu.p.zero
+
+    cpu.execute_instruction(Instruction(op=Operation.SEC, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.CLV, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.SED, mode=AddressMode.Implicit))
+    cpu.a = 0x40
+    initial_pc = cpu.pc
+    ins = Instruction(op=Operation.ADC, mode=AddressMode.Immediate, operand=0x2)
+    cpu.execute_instruction(ins)
+    assert (cpu.pc - initial_pc) == ins.size
+    assert cpu.a == 0x43
+    assert not cpu.p.carry
+    assert not cpu.p.overflow
+    assert not cpu.p.negative
+    assert cpu.p.decimal
+    assert not cpu.p.zero
+
+    cpu.execute_instruction(Instruction(op=Operation.CLC, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.CLV, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.SED, mode=AddressMode.Implicit))
+    cpu.a = 0x99
+    initial_pc = cpu.pc
+    ins = Instruction(op=Operation.ADC, mode=AddressMode.Immediate, operand=0x1)
+    cpu.execute_instruction(ins)
+    assert (cpu.pc - initial_pc) == ins.size
+    assert cpu.a == 0x00
+    assert cpu.p.carry
+    assert not cpu.p.overflow
+    assert cpu.p.negative
+    assert cpu.p.decimal
+    assert not cpu.p.zero
+
+    cpu.execute_instruction(Instruction(op=Operation.CLC, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.CLV, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.SED, mode=AddressMode.Implicit))
+    cpu.a = 0x10
+    initial_pc = cpu.pc
+    ins = Instruction(op=Operation.ADC, mode=AddressMode.Immediate, operand=0x1)
+    cpu.execute_instruction(ins)
+    assert (cpu.pc - initial_pc) == ins.size
+    assert cpu.a == 0x11
+    assert not cpu.p.carry
+    assert not cpu.p.overflow
+    assert not cpu.p.negative
+    assert cpu.p.decimal
+    assert not cpu.p.zero
+
+    cpu.execute_instruction(Instruction(op=Operation.SEC, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.CLV, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.SED, mode=AddressMode.Implicit))
+    cpu.a = 0x1
+    initial_pc = cpu.pc
+    ins = Instruction(op=Operation.SBC, mode=AddressMode.Immediate, operand=0x1)
+    cpu.execute_instruction(ins)
+    assert (cpu.pc - initial_pc) == ins.size
+    assert cpu.a == 0x00
+    assert cpu.p.carry
+    assert not cpu.p.overflow
+    assert not cpu.p.negative
+    assert cpu.p.decimal
+    assert cpu.p.zero
+
+    cpu.execute_instruction(Instruction(op=Operation.SEC, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.CLV, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.SED, mode=AddressMode.Implicit))
+    cpu.a = 0x20
+    initial_pc = cpu.pc
+    ins = Instruction(op=Operation.SBC, mode=AddressMode.Immediate, operand=0x10)
+    cpu.execute_instruction(ins)
+    assert (cpu.pc - initial_pc) == ins.size
+    assert cpu.a == 0x10
+    assert cpu.p.carry
+    assert not cpu.p.overflow
+    assert not cpu.p.negative
+    assert cpu.p.decimal
+    assert not cpu.p.zero
+
+    cpu.execute_instruction(Instruction(op=Operation.CLC, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.SED, mode=AddressMode.Implicit))
+    cpu.a = 0x20
+    initial_pc = cpu.pc
+    ins = Instruction(op=Operation.SBC, mode=AddressMode.Immediate, operand=0x10)
+    cpu.execute_instruction(ins)
+    assert (cpu.pc - initial_pc) == ins.size
+    assert cpu.a == 0x9
+    assert cpu.p.carry
+    assert cpu.p.decimal
+
+    cpu.execute_instruction(Instruction(op=Operation.SEC, mode=AddressMode.Implicit))
+    cpu.execute_instruction(Instruction(op=Operation.SED, mode=AddressMode.Implicit))
+    cpu.a = 0x10
+    initial_pc = cpu.pc
+    ins = Instruction(op=Operation.SBC, mode=AddressMode.Immediate, operand=0x20)
+    cpu.execute_instruction(ins)
+    assert (cpu.pc - initial_pc) == ins.size
+    assert cpu.a == 0x90
+    assert not cpu.p.carry
+    assert cpu.p.decimal
+
+
 def test_load_store_instructions(full_mem_system: CPU):
     cpu = full_mem_system
 
