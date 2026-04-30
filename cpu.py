@@ -496,20 +496,16 @@ class CPU:
 
     def _do_brk_instruction(self, ins: Instruction) -> None:
         """
-        Currently BRK is not emulated as a software interrupt as it was on the real hardware.
+        Implement the BRK instruction.
 
-        Instead it is used as a way to break out of the emulation loop into the hosting context,
-        where the emulation state could be examined, modified and continued (or restarted).
-        We do conduct the pre-jump "ceremony", pushing the PC and status register (including the B flag)
-        and disabling interrupts so our state matches the real hardware. Only the final step of the indirect
-        jump via the 0xFFFE vector is avoided, we simply exit the emulation loop instead.
+        BRK behavior is configurable. It can emulate BRK on the real hardware.
+        Acting as a software interrupt and enabling native debuggers, monitors and operating systems, or it can raise a CPUTrap exception.
+        Allowing the driver code to act as an external monitor/debugger for the system.
         """
         # While JSR pushes the address before the next instruction, BRK pushes
         # a return address that skips the next byte and unlike RTS the RTI instruction doesn't
         # "correct" it, returning from a BRK handler skips one byte in the instruction stream (which is why
         # many consider this a 2 byte instruction even though it's an implicit mode instruction without any operands).
-        #
-        # None of this is actually relevant for this implementation since it doesn't actually jump anywhere.
         self.memory[0x100 + self.s] = (self.pc + 1) >> 8
         self.memory[0x100 + self.s - 1] = (self.pc + 1) & 0xFF
 
@@ -519,7 +515,12 @@ class CPU:
         self.s -= 3
         self.p.interrupt_disable = True
 
-        raise CPUTrap(cpu=self)
+        if config.trap_brk:
+            raise CPUTrap(cpu=self)
+
+        irq_vector_low = self.memory[0xFFFE]
+        irq_vector_high = self.memory[0xFFFF]
+        self.pc = (irq_vector_high << 8) | irq_vector_low
 
     def _do_rti_instruction(self, ins: Instruction) -> None:
         self.p._set_flags(self.memory[0x100 | self.s + 1])

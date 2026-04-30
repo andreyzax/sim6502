@@ -11,9 +11,13 @@ from memory import MemoryMap, RamSegment, RomSegment
 def process_arguments() -> None:
     parser = ArgumentParser()
     parser.add_argument("--metrics", "-m", action="store_true", help="Enable runtime metrics collection")
+    parser.add_argument(
+        "--trap-on-brk", "-b", action="store_true", help="Raise (emulator) exception and break out of run loop on BRK instructions"
+    )
 
     args = parser.parse_args()
     config.enable_runtime_perf_metrics = args.metrics
+    config.trap_brk = args.trap_on_brk
 
 
 def trap_handler(cpu: CPU):
