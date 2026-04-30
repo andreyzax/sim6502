@@ -37,13 +37,15 @@ def main():
     """Emulate apple 1 system."""
     process_arguments()
 
-    monitor_rom = RomSegment.from_binary_file(0xFF00, "bin/wozmon.bin")
-    basic_rom = RomSegment.from_binary_file(0xE000, "bin/basic.bin")
-    mm = MemoryMap(RamSegment(0, 0x7FFF), Video(), Keyboard(), monitor_rom, basic_rom)
+    # monitor_rom = RomSegment.from_binary_file(0xFF00, "bin/wozmon.bin")
+    # basic_rom = RomSegment.from_binary_file(0xE000, "bin/basic.bin")
+    # mm = MemoryMap(RamSegment(0, 0x7FFF), Video(), Keyboard(), monitor_rom, basic_rom)
+    mm = MemoryMap(RamSegment(0, 0x10000))
     reset_addr = mm[0xFFFD] << 8 | mm[0xFFFC]
-    cpu = CPU(memory=mm, pc=reset_addr)
-    with open("bin/mandelbrot-65.bin", "rb") as f:
-        cpu.load(0x280, f)
+    # cpu = CPU(memory=mm, pc=reset_addr)
+    cpu = CPU(memory=mm, pc=0x400)
+    with open("bin/6502_functional_test.bin", "rb") as f:
+        cpu.load(0, f)
 
     try:
         cpu.run()

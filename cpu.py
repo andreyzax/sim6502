@@ -775,6 +775,8 @@ class CPU:
         """Start the cpu's run loop, we only stop due to exceptions."""
         counter = itertools.count()
         runtime = 0
+        prev_pc = self.pc
+        self_loop_count = 0
         try:
             for i in counter:
                 if config.enable_runtime_perf_metrics:
@@ -782,7 +784,14 @@ class CPU:
 
                 if i % 10000 == 0:
                     self.memory.poll_hardware()
+                prev_pc = self.pc
                 self.step()
+                if self.pc == prev_pc:
+                    self_loop_count += 1
+                    if self_loop_count > 3:
+                        raise CPUTrap(self)
+                else:
+                    self_loop_count = 0
                 if config.enable_runtime_perf_metrics:
                     runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable ]
         except KeyboardInterrupt:
