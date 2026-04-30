@@ -10,6 +10,7 @@ A simple MOS 6502 CPU emulator written in Python.
 
 - Emulator core complete.
 - Apple 1 base hardware functional.
+- Passes the 6502 functional test from (https://github.com/Klaus2m5/6502_65C02_functional_tests).
 - Wozmon, Apple BASIC & several third party applications confirmed as working.
 - Currently only tested on Linux (But I strongly believe any unix like system would work fine).
 - Porting to other platforms should be easy, the only requirement is some kind of terminal like interface and the ability to poll for keyboard input.
@@ -21,7 +22,7 @@ A simple MOS 6502 CPU emulator written in Python.
 - [x] Add instruction decoding
 - [x] Implement addressing modes
 - [x] Support full instruction set - (Documented opcodes only for now)
-- [ ] Decimal mode (BCD arithmetic)
+- [x] Decimal mode (BCD arithmetic)
 - [x] Add test suite
 - [x] Basic CLI or debugging interface
 - [ ] Interactive TUI
