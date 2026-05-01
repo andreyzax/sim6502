@@ -21,13 +21,18 @@ def process_arguments() -> None:
 
 
 def trap_handler(cpu: CPU):
+    flags = (
+        "#" if flag else " "
+        for flag in (cpu.p.negative, cpu.p.overflow, True, True, cpu.p.decimal, cpu.p.interrupt_disable, cpu.p.zero, cpu.p.carry)
+    )
+    flags_str = "".join(flags)
     print(f"""\nExecution stopped:
         pc=0x{cpu.pc:X}
         ins={cpu._decode()}
         s=0x{cpu.s:X}
         a=0x{cpu.a:X},x=0x{cpu.x:X},y=0x{cpu.y:X}
         flags:   NV-BDIZC
-                 {"#" if cpu.p.negative else " "}{"#" if cpu.p.overflow else " "}##{"#" if cpu.p.decimal else " "}{"#" if cpu.p.interrupt_disable else " "}{"#" if cpu.p.zero else " "}{"#" if cpu.p.carry else " "}
+                 {flags_str}
         """)
 
 
