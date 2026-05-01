@@ -9,3 +9,6 @@ not constants! They are defined with lower case names and the values here are on
 
 enable_runtime_perf_metrics: bool = False
 trap_brk: bool = False
+
+terminal_device = None
+backend = "terminal"

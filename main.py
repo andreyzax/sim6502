@@ -17,12 +17,17 @@ def process_arguments() -> None:
     parser = ArgumentParser()
     parser.add_argument("--metrics", "-m", action="store_true", help="Enable runtime metrics collection")
     parser.add_argument(
-        "--trap-on-brk", "-b", action="store_true", help="Raise (emulator) exception and break out of run loop on BRK instructions"
+        "--trap-on-brk", "-tb", action="store_true", help="Raise (emulator) exception and break out of run loop on BRK instructions"
     )
+    parser.add_argument("--backend", "-b", action="store", default="terminal", help="UI backend")
+    parser.add_argument("--tty", "-t", action="store", default=None, help="tty device for the terminal backend")
 
     args = parser.parse_args()
     config.enable_runtime_perf_metrics = args.metrics
     config.trap_brk = args.trap_on_brk
+    config.backend = args.backend
+    if config.backend == "terminal":  # We only support alternative tty devices with the "terminal" backend
+        config.terminal_device = args.tty
 
 
 def trap_handler(cpu: CPU):

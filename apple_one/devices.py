@@ -4,15 +4,11 @@ This module implements the apple 1 console.
 The keyboard and video section are both implemented
 """
 
-import atexit
-import select
-import sys
-import termios
-import tty
 from collections import deque
 from contextlib import suppress
 from typing import Callable
 
+import config
 from mmio import Device, Register
 
 KBD = 0xD010
@@ -30,7 +26,7 @@ KEY_CTRL_R = 0x12
 
 
 class Keyboard(Device):
-    _original_tty_settings = None
+    # _original_tty_settings = None
 
     class KBD(Register):
         def __init__(self, device: "Keyboard") -> None:
@@ -59,33 +55,24 @@ class Keyboard(Device):
             pass
 
     def __init__(self, on_reset: Callable[[], None] | None = None):
-        if not (sys.stdin.isatty() and sys.stdout.isatty()):
-            raise RuntimeError("Console backend is not supported without a tty attached")
 
         super().__init__(0xD010, 2)
-
-        atexit.register(self._restore_tty)
-
-        type(self)._original_tty_settings = termios.tcgetattr(sys.stdin.fileno())
-        tty.setcbreak(sys.stdin.fileno())
 
         self.registers = {KBD: self.KBD(self), KBDCR: self.KBDCR(self)}
         self.input_ready = False
         self.input_queue: deque[int] = deque()
         self.on_reset = on_reset
 
-    @classmethod
-    def _restore_tty(cls):
-        if cls._original_tty_settings:
-            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, cls._original_tty_settings)
-            cls._original_tty_settings = None
+        if config.backend == "terminal":
+            from .terminal import TerminalKeyboardBackend
 
-    def _tty_input_ready(self) -> bool:
-        return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
+            self.keyboard_backend = TerminalKeyboardBackend()
+        else:
+            raise RuntimeError(f"Backend ({config.backend}) is not supported")
 
     def poll_host(self) -> None:
-        if self._tty_input_ready():
-            ch = ord(sys.stdin.read(1).upper())
+        if self.keyboard_backend.kb_input_ready():
+            ch = ord(self.keyboard_backend.get_char().upper())
             if ch == KEY_LF:
                 self.input_queue.append(KEY_CR)
             elif ch == KEY_CTRL_R:
@@ -116,8 +103,9 @@ class Keyboard(Device):
 
 class Video(Device):
     class DSP(Register):
-        def __init__(self) -> None:
+        def __init__(self, put_char: Callable[[int], None]) -> None:
             self.cursor = 0
+            self.put_char = put_char
 
         def read(self) -> int:
             return 0x0
@@ -125,15 +113,15 @@ class Video(Device):
         def write(self, value: int) -> None:
             ch = value & 0x7F
             if ch == KEY_CR:
-                print("\n", end="", flush=True)
+                self.put_char(ord("\n"))
                 self.cursor = 0
                 return
 
             if self.cursor > LAST_COLUMN:
-                print("\n", end="", flush=True)
+                self.put_char(ord("\n"))
                 self.cursor = 0
 
-            print(chr(ch), end="", flush=True)
+            self.put_char(ch)
             self.cursor += 1
 
     class DSPCR(Register):
@@ -148,7 +136,15 @@ class Video(Device):
 
     def __init__(self) -> None:
         super().__init__(0xD012, 2)
-        self.registers = {DSP: self.DSP(), DSPCR: self.DSPCR()}
+
+        if config.backend == "terminal":
+            from .terminal import TerminalDisplayBackend
+
+            self.display_backend = TerminalDisplayBackend()
+        else:
+            raise RuntimeError(f"Backend ({config.backend}) is not supported")
+
+        self.registers = {DSP: self.DSP(self.display_backend.put_char), DSPCR: self.DSPCR()}
 
     def poll_host(self) -> None:
         pass
