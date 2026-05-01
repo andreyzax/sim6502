@@ -50,6 +50,9 @@ def main():
     mm = MemoryMap(RamSegment(0, 0x7FFF), Video(), Keyboard(), monitor_rom, basic_rom)
     reset_addr = mm[0xFFFD] << 8 | mm[0xFFFC]
     cpu = CPU(memory=mm, pc=reset_addr)
+    if isinstance(mm.hardware_map[0], Keyboard):
+        mm.hardware_map[0].on_reset = cpu.reset
+
     with open("bin/mandelbrot-65.bin", "rb") as f:
         cpu.load(0x280, f)
 

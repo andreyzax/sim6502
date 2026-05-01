@@ -21,7 +21,6 @@ from io import BufferedIOBase
 from typing import Callable
 
 import config
-from apple_one import Keyboard
 from assembly import AddressMode, Instruction, Operation
 from memory import ADDRESS_SPACE_SIZE, MemoryMap
 
@@ -583,11 +582,6 @@ class CPU:
         self._init_s = s
         self._init_p = self._StatusRegister()
         self.memory = memory
-
-        for segment in self.memory.hardware_map:
-            if isinstance(segment, Keyboard):
-                segment.on_reset = self.reset
-
         self.reset()
 
         self._instruction_dispatch: list[Callable[[Instruction], None]] = [lambda ins: None] * len(Operation)
