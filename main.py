@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+Default driver code and entry point for the emulator.
+
+This assembles a simple apple 1 like system with wozmon, apple basic and a demo program.
+"""
 
 from argparse import ArgumentParser
 
