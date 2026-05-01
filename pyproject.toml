@@ -6,6 +6,18 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+tui = [
+    "textual>=8.2.5",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-cov >= 7.1.0",
+    "pytest-mock >= 3.15.1",
+]
+
 [tool.ruff]
 target-version = "py310"
 line-length = 145
@@ -45,12 +57,3 @@ sequence = ["test-py311", "test-py312", "test-py313", "test-py314"]
 
 [tool.poe.tasks.test]
 cmd = "pytest -s --cov memory --cov cpu  --cov assembly --cov mmio --cov-branch  --cov-report=term-missing   ./tests/"
-
-
-
-[dependency-groups]
-dev = [
-    "pytest>=9.0.3",
-    "pytest-cov >= 7.1.0",
-    "pytest-mock >= 3.15.1",
-]
