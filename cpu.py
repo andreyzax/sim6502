@@ -21,8 +21,8 @@ from io import BufferedIOBase
 from typing import Callable
 
 import config
+from apple_one import Keyboard
 from assembly import AddressMode, Instruction, Operation
-from console import Keyboard
 from memory import ADDRESS_SPACE_SIZE, MemoryMap
 
 

@@ -3,7 +3,7 @@
 from argparse import ArgumentParser
 
 import config
-from console import Keyboard, Video
+from apple_one import Keyboard, Video
 from cpu import CPU, CPUTrap
 from memory import MemoryMap, RamSegment, RomSegment
 
