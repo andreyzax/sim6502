@@ -30,9 +30,6 @@ def trap_handler(cpu: CPU):
                  {"#" if cpu.p.negative else " "}{"#" if cpu.p.overflow else " "}##{"#" if cpu.p.decimal else " "}{"#" if cpu.p.interrupt_disable else " "}{"#" if cpu.p.zero else " "}{"#" if cpu.p.carry else " "}
         """)
 
-    # print("Memory Dump:\n--------------------------------------")
-    # print(ctx.cpu.memory.dump())
-
 
 def main():
     """Emulate apple 1 system."""
