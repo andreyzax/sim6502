@@ -4,13 +4,23 @@ from abc import ABC, abstractmethod
 
 
 class KeyboardBackend(ABC):
-    @abstractmethod
-    def kb_input_ready(self) -> bool: ...
+    """Base class for keyboard implementation backends."""
 
     @abstractmethod
-    def get_char(self) -> str: ...
+    def kb_input_ready(self) -> bool:
+        """Poll for keyboard input."""
+        ...
+
+    @abstractmethod
+    def get_char(self) -> str:
+        """Get character from the backend."""
+        ...
 
 
 class DisplayBackend(ABC):
+    """Base class for display implementation backends."""
+
     @abstractmethod
-    def put_char(self, char: int) -> None: ...
+    def put_char(self, char: int) -> None:
+        """Output character to the backend."""
+        ...
