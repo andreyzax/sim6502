@@ -31,11 +31,11 @@ class AppleOne(System):
         self.keyboard = Keyboard(backend=keyboard_backend)
 
         roms = (RomSegment.from_binary_file(base_address=rom[0], path=rom[1]) for rom in config.roms)
-        self.memory = MemoryMap(RamSegment(0, 0x7FFF), self.video, self.keyboard, *roms)
+        self._memory = MemoryMap(RamSegment(0, 0x7FFF), self.video, self.keyboard, *roms)
 
-        reset_addr = self.memory[0xFFFD] << 8 | self.memory[0xFFFC]
-        self.cpu = CPU(memory=self.memory, pc=reset_addr)
-        self.keyboard.on_reset = self.cpu.reset
+        reset_addr = self._memory[0xFFFD] << 8 | self._memory[0xFFFC]
+        self._cpu = CPU(memory=self._memory, pc=reset_addr)
+        self.keyboard.on_reset = self._cpu.reset
 
         if config.program is not None:
             with open(config.program[1], "rb") as f:
@@ -44,8 +44,8 @@ class AppleOne(System):
     def step(self, poll_hardware: bool = False) -> None:
         """Execute a single instruction, optionally poll the hardware for pending input."""
         if poll_hardware:
-            self.memory.poll_hardware()
-        self.cpu.step()
+            self._memory.poll_hardware()
+        self._cpu.step()
 
     def run(self) -> Metrics | None:
         """
@@ -107,3 +107,13 @@ class AppleOne(System):
             return Metrics(instructions=i, ips=ips, avg_ins_time=avg_ins_time)
         else:
             return None
+
+    @property
+    def memory(self) -> MemoryMap:
+        """Get the system's memory."""
+        return self._memory
+
+    @property
+    def cpu(self) -> CPU:
+        """Get the system's cpu."""
+        return self._cpu
