@@ -50,7 +50,7 @@ def init_backend(terminal: FileIO | TextIOWrapper | None = None):
             raise RuntimeError("Console backend is not supported without a tty attached")
 
         _input = TextIOWrapper(terminal)
-        _output = TextIOWrapper(terminal)  # , write_through=True)
+        _output = TextIOWrapper(terminal)
 
     assert isinstance(_input, TextIOWrapper)
     atexit.register(restore_terminal, _input)
