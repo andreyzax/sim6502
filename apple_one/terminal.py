@@ -13,7 +13,6 @@ import sys
 import termios
 import tty
 from io import FileIO, TextIOWrapper
-from typing import cast
 
 import config
 
@@ -44,7 +43,7 @@ def init_backend(terminal: FileIO | TextIOWrapper | None = None):
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
             raise RuntimeError("Console backend is not supported without a tty attached")
 
-        _output = cast(TextIOWrapper, _output)
+        assert isinstance(_output, TextIOWrapper)
         _output.reconfigure(write_through=True)
     else:
         if not (isinstance(terminal, FileIO) and terminal.isatty()):
@@ -53,7 +52,7 @@ def init_backend(terminal: FileIO | TextIOWrapper | None = None):
         _input = TextIOWrapper(terminal)
         _output = TextIOWrapper(terminal)  # , write_through=True)
 
-    _input = cast(TextIOWrapper, _input)
+    assert isinstance(_input, TextIOWrapper)
     atexit.register(restore_terminal, _input)
 
     _original_tty_settings = termios.tcgetattr(_input.fileno())
