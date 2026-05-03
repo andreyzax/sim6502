@@ -60,17 +60,24 @@ def init_backend(terminal: FileIO | TextIOWrapper | None = None):
 
 
 class TerminalKeyboardBackend(KeyboardBackend):
+    """Apple 1 keyboard implementation using the raw tty."""
+
     def kb_input_ready(self) -> bool:
+        """Poll for input from the tty device."""
         return select.select([_input.fileno()], [], [], 0) == ([_input.fileno()], [], [])
 
     def get_char(self) -> str:
+        """Read a character from the tty device."""
         global _input
 
         return _input.read(1)
 
 
 class TerminalDisplayBackend(DisplayBackend):
+    """Apple 1 display implementation using the raw tty."""
+
     def put_char(self, char: int) -> None:
+        """Write a character to the tty device."""
         global _output
 
         _output.write(chr(char))
