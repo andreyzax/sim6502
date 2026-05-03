@@ -82,11 +82,3 @@ class TerminalDisplayBackend(DisplayBackend):
 
         _output.write(chr(char))
         _output.flush()
-
-
-if __name__ != "__main__":  # only run on *import* not as a stand alone script!
-    if config.terminal_device:
-        terminal = open(config.terminal_device, "r+b", buffering=0)
-        init_backend(terminal)
-    else:
-        init_backend()
