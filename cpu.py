@@ -231,8 +231,8 @@ class CPU:
                 raise RuntimeError(f"Operation: {ins.operation} is not a valid status register operation")
 
     def _do_arithmetic_instructions(self, ins: Instruction) -> None:
-        decimal_correction_low = 0x6  # if ins.operation == Operation.ADC else 0xFA  # (~0x6  + 1) & 0xFF
-        decimal_correction_high = 0x60  # if ins.operation == Operation.ADC else 0xA0  # (~0x60 + 1) & 0xFF
+        decimal_correction_low = 0x6
+        decimal_correction_high = 0x60
 
         operand = self._fetch_operand(ins)
         operand = operand if ins.operation == Operation.ADC else (~operand & 0xFF)
