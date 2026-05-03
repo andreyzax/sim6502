@@ -12,3 +12,7 @@ trap_brk: bool = False
 
 terminal_device = None
 backend = "terminal"
+
+roms = ((0xFF00, "bin/wozmon.bin"), (0xE000, "bin/basic.bin"))
+
+program = (0x280, "bin/mandelbrot-65.bin", "rb")
