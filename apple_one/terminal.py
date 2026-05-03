@@ -14,9 +14,7 @@ import termios
 import tty
 from io import FileIO, TextIOWrapper
 
-import config
-
-from .api import DisplayBackend, KeyboardBackend
+from apple_one.api import DisplayBackend, KeyboardBackend
 
 _original_tty_settings = None
 _input = sys.stdin
