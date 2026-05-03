@@ -8,7 +8,7 @@ from collections import deque
 from contextlib import suppress
 from typing import Callable
 
-import config
+from apple_one.api import DisplayBackend, KeyboardBackend
 from mmio import Device, Register
 
 KBD = 0xD010
@@ -54,25 +54,20 @@ class Keyboard(Device):
         def write(self, value: int) -> None:
             pass
 
-    def __init__(self, on_reset: Callable[[], None] | None = None):
-
+    def __init__(self, backend: KeyboardBackend, on_reset: Callable[[], None] | None = None):
+        """Consume implementation backend and initialize keyboard state."""
         super().__init__(0xD010, 2)
 
         self.registers = {KBD: self.KBD(self), KBDCR: self.KBDCR(self)}
         self.input_ready = False
         self.input_queue: deque[int] = deque()
         self.on_reset = on_reset
-
-        if config.backend == "terminal":
-            from .terminal import TerminalKeyboardBackend
-
-            self.keyboard_backend = TerminalKeyboardBackend()
-        else:
-            raise RuntimeError(f"Backend ({config.backend}) is not supported")
+        self.backend = backend
 
     def poll_host(self) -> None:
-        if self.keyboard_backend.kb_input_ready():
-            ch = ord(self.keyboard_backend.get_char().upper())
+        """Poll for input from the implementation backend."""
+        if self.backend.kb_input_ready():
+            ch = ord(self.backend.get_char().upper())
             if ch == KEY_LF:
                 self.input_queue.append(KEY_CR)
             elif ch == KEY_CTRL_R:
@@ -137,14 +132,8 @@ class Video(Device):
     def __init__(self) -> None:
         super().__init__(0xD012, 2)
 
-        if config.backend == "terminal":
-            from .terminal import TerminalDisplayBackend
-
-            self.display_backend = TerminalDisplayBackend()
-        else:
-            raise RuntimeError(f"Backend ({config.backend}) is not supported")
-
-        self.registers = {DSP: self.DSP(self.display_backend.put_char), DSPCR: self.DSPCR()}
+        self.backend = backend
+        self.registers = {DSP: self.DSP(self.backend.put_char), DSPCR: self.DSPCR()}
 
     def poll_host(self) -> None:
         pass
