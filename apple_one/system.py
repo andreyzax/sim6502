@@ -10,12 +10,13 @@ Classes:
 import itertools
 import time
 
+import apple_one.terminal as terminal
 import config
 from apple_one.api import DisplayBackend, KeyboardBackend
 from apple_one.devices import Keyboard, Video
-from cpu import CPU
+from cpu import CPU, CPUTrap
 from memory import MemoryMap, RamSegment, RomSegment
-from runtime import Metrics, System
+from runtime import Metrics, Runtime, System
 
 
 class AppleOne(System):
@@ -117,3 +118,75 @@ class AppleOne(System):
     def cpu(self) -> CPU:
         """Get the system's cpu."""
         return self._cpu
+
+
+def get_system(backend: str) -> AppleOne:
+    """Apple 1 system factory method."""
+    if backend == "terminal":
+        return AppleOne(display_backend=terminal.TerminalDisplayBackend(), keyboard_backend=terminal.TerminalKeyboardBackend())
+    else:
+        raise RuntimeError(f"Backend ({backend}) is not supported")
+
+
+class TerminalRuntime(Runtime):
+    """Terminal backed runtime class."""
+
+    def __init__(self):
+        """Create a terminal backed runtime."""
+        if config.terminal_device:
+            device = open(config.terminal_device, "r+b", buffering=0)
+            terminal.init_backend(device)
+        else:
+            terminal.init_backend()
+
+        self.system = get_system("terminal")
+        self.step = self.system.step
+
+    def _trap_handler(self, cpu: CPU) -> None:
+        """Handle cpu traps, currently only gets triggered if `config.trap_brk` is true."""
+        flags = ("#" if flag else " " for flag in (cpu.p.negative, cpu.p.overflow, True, True, cpu.p.decimal, cpu.p.interrupt_disable, cpu.p.zero, cpu.p.carry))
+        flags_str = "".join(flags)
+        print(f"""\nExecution stopped:
+            pc=0x{cpu.pc:X}
+            ins={cpu._decode()}
+            s=0x{cpu.s:X}
+            a=0x{cpu.a:X},x=0x{cpu.x:X},y=0x{cpu.y:X}
+            flags:   NV-BDIZC
+                     {flags_str}
+            """)
+
+    @property
+    def cpu(self) -> CPU:
+        """Get the cpu."""
+        return self.system.cpu
+
+    @property
+    def memory(self) -> MemoryMap:
+        """Get the memory."""
+        return self.system.memory
+
+    def step(self, poll_hardware: bool = False) -> None:
+        """Execute one instruction, optionally polling hardware."""
+        return self.system.step(poll_hardware)
+
+    def run_for(self, upto: int) -> Metrics | None:
+        """
+        Run for at most 'upto' instructions.
+
+        Returns a Metrics object or None.
+        """
+        return self.system.run_for(upto)
+
+    def run(self) -> None:
+        """
+        Start the cpu's run loop, we only stop due to exceptions.
+
+        Returns None.
+        """
+        try:
+            res = self.system.run()
+            if res:
+                print("\nExecution stopped.")
+                print(f"Instructions: {res.instructions}, ips: {res.ips:,}, average instruction time: {res.avg_ins_time:.3f}us")
+        except CPUTrap as trap:
+            self._trap_handler(trap.cpu)
