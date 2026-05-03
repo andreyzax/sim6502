@@ -1,7 +1,9 @@
 """
 This module implements the apple 1 console.
 
-The keyboard and video section are both implemented
+Classes:
+    Keyboard - Implements the apple 1 keyboard interface.
+    Video - Implements the apple 1 video interface.
 """
 
 from collections import deque
@@ -26,14 +28,18 @@ KEY_CTRL_R = 0x12
 
 
 class Keyboard(Device):
-    # _original_tty_settings = None
+    """The keyboard interface."""
 
     class KBD(Register):
+        """KBD register, keyboard input characters."""
+
         def __init__(self, device: "Keyboard") -> None:
+            """Initialize register state."""
             self.device = device
             self.last_char = 0
 
         def read(self) -> int:
+            """Read characters from the register."""
             with suppress(IndexError):
                 self.last_char = self.device.input_queue.popleft() | 0x80
                 if not self.device.input_queue:
@@ -42,16 +48,22 @@ class Keyboard(Device):
             return self.last_char
 
         def write(self, value: int) -> None:
+            """Write to the register, a no op stub method."""
             pass
 
     class KBDCR(Register):
+        """KBDCR register, keyboard input availability."""
+
         def __init__(self, device: "Keyboard") -> None:
+            """Initialize register state."""
             self.device = device
 
         def read(self) -> int:
+            """Read from the register, high bit is set when input is available."""
             return 0x80 if self.device.input_ready else 0x0
 
         def write(self, value: int) -> None:
+            """Write to the register, a no op stub method."""
             pass
 
     def __init__(self, backend: KeyboardBackend, on_reset: Callable[[], None] | None = None):
@@ -79,6 +91,7 @@ class Keyboard(Device):
             self.input_ready = True
 
     def __getitem__(self, address: int) -> int:
+        """Memory mapped io interface, route reads to the correct registers."""
         self._validate_address(address)
 
         for reg_address, register in self.registers.items():
@@ -88,6 +101,7 @@ class Keyboard(Device):
         raise IndexError
 
     def __setitem__(self, address: int, value: int) -> None:
+        """Memory mapped io interface, route writes to the correct registers."""
         self._validate_address(address)
 
         if address in self.registers:
@@ -97,15 +111,26 @@ class Keyboard(Device):
 
 
 class Video(Device):
+    """The video interface."""
+
     class DSP(Register):
+        """DSP register, output characters to the screen."""
+
         def __init__(self, put_char: Callable[[int], None]) -> None:
+            """
+            Initialize register state.
+
+            Attach the backend implementation put_char() function.
+            """
             self.cursor = 0
             self.put_char = put_char
 
         def read(self) -> int:
+            """Read data from register, dummy stub function."""
             return 0x0
 
         def write(self, value: int) -> None:
+            """Output characters to the screen."""
             ch = value & 0x7F
             if ch == KEY_CR:
                 self.put_char(ord("\n"))
@@ -120,25 +145,39 @@ class Video(Device):
             self.cursor += 1
 
     class DSPCR(Register):
+        """
+        DSPCR register, get video device status.
+
+        We don't fully emulate the apple 1 hardware state,
+        so this register is a stub dummy register which always returns
+        a ready for output status.
+        """
+
         def __init__(self) -> None:
+            """Initialize register state."""
             self.value = 0x0
 
         def read(self) -> int:
+            """Read data from register, dummy stub function."""
             return self.value
 
         def write(self, value: int) -> None:
+            """Write data from register, dummy stub function."""
             self.value = value
 
-    def __init__(self) -> None:
+    def __init__(self, backend: DisplayBackend) -> None:
+        """Consume implementation backend and initialize video state."""
         super().__init__(0xD012, 2)
 
         self.backend = backend
         self.registers = {DSP: self.DSP(self.backend.put_char), DSPCR: self.DSPCR()}
 
     def poll_host(self) -> None:
+        """Dummy stub for output only device."""
         pass
 
     def __getitem__(self, address: int) -> int:
+        """Memory mapped io interface, route reads to the correct registers."""
         self._validate_address(address)
 
         for reg_address, register in self.registers.items():
@@ -148,6 +187,7 @@ class Video(Device):
         raise IndexError
 
     def __setitem__(self, address: int, value: int) -> None:
+        """Memory mapped io interface, route writes to the correct registers."""
         self._validate_address(address)
 
         for reg_address, register in self.registers.items():

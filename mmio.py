@@ -18,17 +18,24 @@ from memory import MemorySegment
 
 
 class Register(ABC):
-    @abstractmethod
-    def read(self) -> int: ...
+    """Abstract base class interface for io registers."""
 
     @abstractmethod
-    def write(self, value: int) -> None: ...
+    def read(self) -> int:
+        """Read from register."""
+        ...
+
+    @abstractmethod
+    def write(self, value: int) -> None:
+        """Write to register."""
+        ...
 
 
 class Device(MemorySegment):
     """Abstract base class interface for io devices."""
 
     def __init__(self, base_address: int, size: int) -> None:
+        """Initilize address address range and internal state."""
         super().__init__(base_address, size)
 
         self.registers: dict[int, Register] = {}

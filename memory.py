@@ -14,8 +14,6 @@ from functools import total_ordering
 from pathlib import Path
 from typing import BinaryIO, Self, cast, overload
 
-PAGE_SIZE = 256
-PAGE_NR = 256  # 256 pages * 256 bytes per page = 64 KiB address space
 ADDRESS_SPACE_SIZE = 1024 * 64
 LAST_ADDRESS = ADDRESS_SPACE_SIZE - 1
 
@@ -64,6 +62,7 @@ class MemorySegment(ABC):
             return value in self._address_range
 
     def __and__(self, value: Self) -> bool:
+        """Overloads & (bitwise and) operator, returns true if two MemorySegment objects overlap."""
         if not isinstance(value, MemorySegment):
             return NotImplemented
 
@@ -77,12 +76,18 @@ class MemorySegment(ABC):
     __rand__ = __and__
 
     def __lt__(self, value: Self) -> bool:
+        """Returns true if is this MemorySegment has a lower base address."""
         if not isinstance(value, MemorySegment):
             return NotImplemented
 
         return self.base_address < value.base_address
 
     def __eq__(self, value: object) -> bool:
+        """
+        Returns true is if both MemorySegments have the same base addresses.
+
+        Note that this doesn't take the segments sizes into account.
+        """
         if not isinstance(value, MemorySegment):
             return NotImplemented
 

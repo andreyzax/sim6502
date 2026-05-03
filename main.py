@@ -7,18 +7,20 @@ This assembles a simple apple 1 like system with wozmon, apple basic and a demo 
 
 from argparse import ArgumentParser
 
+# from textual import events
+# from textual.app import ComposeResult
 import config
-from apple_one import Keyboard, Video
+from apple_one.system import AppleOne
+
+# from apple_one.tui import TTY
 from cpu import CPU, CPUTrap
-from memory import MemoryMap, RamSegment, RomSegment
 
 
 def process_arguments() -> None:
+    """Process command line arguments and set parameter values in config module."""
     parser = ArgumentParser()
     parser.add_argument("--metrics", "-m", action="store_true", help="Enable runtime metrics collection")
-    parser.add_argument(
-        "--trap-on-brk", "-tb", action="store_true", help="Raise (emulator) exception and break out of run loop on BRK instructions"
-    )
+    parser.add_argument("--trap-on-brk", "-tb", action="store_true", help="Raise (emulator) exception and break out of run loop on BRK instructions")
     parser.add_argument("--backend", "-b", action="store", default="terminal", help="UI backend")
     parser.add_argument("--tty", "-t", action="store", default=None, help="tty device for the terminal backend")
 
@@ -31,10 +33,8 @@ def process_arguments() -> None:
 
 
 def trap_handler(cpu: CPU):
-    flags = (
-        "#" if flag else " "
-        for flag in (cpu.p.negative, cpu.p.overflow, True, True, cpu.p.decimal, cpu.p.interrupt_disable, cpu.p.zero, cpu.p.carry)
-    )
+    """Handle cpu traps, currently only gets triggered if `config.trap_brk` is true."""
+    flags = ("#" if flag else " " for flag in (cpu.p.negative, cpu.p.overflow, True, True, cpu.p.decimal, cpu.p.interrupt_disable, cpu.p.zero, cpu.p.carry))
     flags_str = "".join(flags)
     print(f"""\nExecution stopped:
         pc=0x{cpu.pc:X}
@@ -46,26 +46,54 @@ def trap_handler(cpu: CPU):
         """)
 
 
-def main():
-    """Emulate apple 1 system."""
-    process_arguments()
+# def tui_main():
+#    from textual.app import App
+#    from textual.containers import HorizontalGroup
+#    from textual.widgets import Placeholder
+#
+#    class UI(App):
+#        CSS_PATH = "style.tcss"
+#
+#        def compose(self) -> ComposeResult:
+#            yield HorizontalGroup(TTY(columns=40, lines=24, id="console"), Placeholder("Memory", id="memory_view"))
+#            yield Placeholder("Statusbar", id="status_bar")
+#
+#        def on_key(self, event: events.Key) -> None:
+#            if event.is_printable:
+#                assert event.character is not None
+#                self.query_one(TTY).put_char(ord(event.character))
+#            if event.name == "enter":
+#                self.query_one(TTY).put_char(0xA)
+#
+#    UI().run()
 
-    monitor_rom = RomSegment.from_binary_file(0xFF00, "bin/wozmon.bin")
-    basic_rom = RomSegment.from_binary_file(0xE000, "bin/basic.bin")
-    mm = MemoryMap(RamSegment(0, 0x7FFF), Video(), Keyboard(), monitor_rom, basic_rom)
-    reset_addr = mm[0xFFFD] << 8 | mm[0xFFFC]
-    cpu = CPU(memory=mm, pc=reset_addr)
-    if isinstance(mm.hardware_map[0], Keyboard):
-        mm.hardware_map[0].on_reset = cpu.reset
 
-    with open("bin/mandelbrot-65.bin", "rb") as f:
-        cpu.load(0x280, f)
+def terminal_main():
+    """Emulate apple 1 system with a terminal backend."""
+    from apple_one import terminal
+
+    if config.terminal_device:
+        device = open(config.terminal_device, "r+b", buffering=0)
+        terminal.init_backend(device)
+    else:
+        terminal.init_backend()
+
+    system = AppleOne(display_backend=terminal.TerminalDisplayBackend(), keyboard_backend=terminal.TerminalKeyboardBackend())
 
     try:
-        cpu.run()
+        res = system.run()
+        if res:
+            print("\nExecution stopped.")
+            print(f"Instructions: {res.instructions}, ips: {res.ips:,}, average instruction time: {res.avg_ins_time:.3f}us")
     except CPUTrap as trap:
         trap_handler(trap.cpu)
 
 
 if __name__ == "__main__":
-    main()
+    process_arguments()
+    if config.backend == "terminal":
+        terminal_main()
+    # elif config.backend == "tui":
+    #    tui_main()
+    else:
+        raise RuntimeError(f"Backend ({config.backend}) is not supported")
