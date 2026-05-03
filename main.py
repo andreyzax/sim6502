@@ -7,13 +7,13 @@ This assembles a simple apple 1 like system with wozmon, apple basic and a demo 
 
 from argparse import ArgumentParser
 
+import config
+
 # from textual import events
 # from textual.app import ComposeResult
-import config
-from apple_one.system import AppleOne
+from apple_one.system import TerminalRuntime
 
 # from apple_one.tui import TTY
-from cpu import CPU, CPUTrap
 
 
 def process_arguments() -> None:
@@ -30,20 +30,6 @@ def process_arguments() -> None:
     config.backend = args.backend
     if config.backend == "terminal":  # We only support alternative tty devices with the "terminal" backend
         config.terminal_device = args.tty
-
-
-def trap_handler(cpu: CPU):
-    """Handle cpu traps, currently only gets triggered if `config.trap_brk` is true."""
-    flags = ("#" if flag else " " for flag in (cpu.p.negative, cpu.p.overflow, True, True, cpu.p.decimal, cpu.p.interrupt_disable, cpu.p.zero, cpu.p.carry))
-    flags_str = "".join(flags)
-    print(f"""\nExecution stopped:
-        pc=0x{cpu.pc:X}
-        ins={cpu._decode()}
-        s=0x{cpu.s:X}
-        a=0x{cpu.a:X},x=0x{cpu.x:X},y=0x{cpu.y:X}
-        flags:   NV-BDIZC
-                 {flags_str}
-        """)
 
 
 # def tui_main():
@@ -68,32 +54,12 @@ def trap_handler(cpu: CPU):
 #    UI().run()
 
 
-def terminal_main():
-    """Emulate apple 1 system with a terminal backend."""
-    from apple_one import terminal
-
-    if config.terminal_device:
-        device = open(config.terminal_device, "r+b", buffering=0)
-        terminal.init_backend(device)
-    else:
-        terminal.init_backend()
-
-    system = AppleOne(display_backend=terminal.TerminalDisplayBackend(), keyboard_backend=terminal.TerminalKeyboardBackend())
-
-    try:
-        res = system.run()
-        if res:
-            print("\nExecution stopped.")
-            print(f"Instructions: {res.instructions}, ips: {res.ips:,}, average instruction time: {res.avg_ins_time:.3f}us")
-    except CPUTrap as trap:
-        trap_handler(trap.cpu)
-
-
 if __name__ == "__main__":
     process_arguments()
+
     if config.backend == "terminal":
-        terminal_main()
-    # elif config.backend == "tui":
-    #    tui_main()
+        runtime = TerminalRuntime()
     else:
-        raise RuntimeError(f"Backend ({config.backend}) is not supported")
+        raise RuntimeError(f"Backend ({config.backend}) is not supported.")
+
+    runtime.run()
