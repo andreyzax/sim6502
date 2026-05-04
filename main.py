@@ -63,5 +63,3 @@ if __name__ == "__main__":
         ui.run()
     else:
         raise RuntimeError(f"Backend ({config.backend}) is not supported.")
-
-    runtime.run()
