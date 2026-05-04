@@ -9,13 +9,15 @@ Classes:
 """
 
 from abc import ABC, abstractmethod
-from typing import NamedTuple
+from dataclasses import dataclass
+from typing import Self
 
 from cpu import CPU
 from memory import MemoryMap
 
 
-class Metrics(NamedTuple):
+@dataclass
+class Metrics:
     """
     Aggregated metrics data from a cpu execution run.
 
@@ -26,7 +28,50 @@ class Metrics(NamedTuple):
 
     instructions: int
     ips: int
-    avg_ins_time: float
+    avg_ins_time: float  # microseconds
+
+    def __add__(self, other: Self | None) -> Self:
+        """
+        Add two Metrics objects.
+
+        Return a new Metrics object with aggregated statistics counters.
+        Has special handling for
+        """
+        # Special case for things like:
+        # accumulator = None
+        # ...
+        # accumulator = accumulator + Metrics(...)
+        if other is None:
+            return type(self)(instructions=self.instructions, ips=self.ips, avg_ins_time=self.avg_ins_time)
+
+        if not isinstance(other, type(self)):
+            return NotImplemented
+
+        total_instructions = self.instructions + other.instructions
+        new_ips = (self.ips * self.instructions + other.ips * other.instructions) / total_instructions
+        new_avg_ins_time = (self.avg_ins_time * self.instructions + other.avg_ins_time * other.instructions) / total_instructions
+        return type(self)(
+            instructions=total_instructions,
+            ips=round(new_ips),
+            avg_ins_time=new_avg_ins_time,
+        )
+
+    __radd__ = __add__  # Make self + other equvilent to other + self
+
+    def __iadd__(self, other: Self | None) -> Self:
+        """Self increment version of __add__()."""
+        if not isinstance(other, type(self)):
+            return NotImplemented
+
+        total_instructions = self.instructions + other.instructions
+        new_ips = (self.ips * self.instructions + other.ips * other.instructions) / total_instructions
+        new_avg_ins_time = (self.avg_ins_time * self.instructions + other.avg_ins_time * other.instructions) / total_instructions
+
+        self.instructions = total_instructions
+        self.ips = round(new_ips)
+        self.avg_ins_time = new_avg_ins_time
+
+        return self
 
 
 class System(ABC):
