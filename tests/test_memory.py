@@ -1,7 +1,7 @@
 from operator import add
 import pytest
 
-from memory import MemoryMap, RamSegment, PAGE_NR, PAGE_SIZE, RomSegment
+from memory import MemoryMap, RamSegment, RomSegment
 
 
 @pytest.fixture(scope="session")

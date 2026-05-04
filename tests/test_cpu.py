@@ -1,7 +1,9 @@
 import pytest
 
+from pytest_mock import MockerFixture
+
 from cpu import CPU, CPUTrap
-from memory import MemoryMap, MemorySegment, RamSegment
+from memory import MemoryMap, RamSegment
 from assembly import Instruction, Operation, AddressMode
 
 
@@ -1716,8 +1718,9 @@ def test_jump_instructions(full_mem_system: CPU):
     assert cpu.s == 0xFF
 
 
-def test_brk_instruction(system: CPU):
+def test_brk_instruction(system: CPU, mocker: MockerFixture):
     cpu = system
+    mocker.patch("config.trap_brk", return_value=True)
 
     ins = Instruction(op=Operation.BRK, mode=AddressMode.Implicit)
     cpu.pc = 0xDEED
@@ -1734,8 +1737,9 @@ def test_brk_instruction(system: CPU):
     assert bool(stored_flags & (1 << 4))  # Check "B" flag
 
 
-def test_rti_instruction(system: CPU):
+def test_rti_instruction(system: CPU, mocker: MockerFixture):
     cpu = system
+    mocker.patch("config.trap_brk", return_value=True)
 
     ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
     cpu.pc = 0x0
