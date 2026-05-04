@@ -2,9 +2,9 @@ Screen {
     align: center middle;
 }
 
-HorizontalGroup {
+/*HorizontalGroup {
     height: 100%;
-}
+}*/
 
 #console {
     box_sizing: content-box;
@@ -23,13 +23,19 @@ HorizontalGroup {
     border: heavy yellow;
 }
 
-#memory_view {
+/*#memory_view {
     min-width: 54;
     min-height: 24;
-}
+    }*/
 
 #status_bar {
-    height: 3;
-    min-height: 3;
+    height: auto;
+    /*min-height: 2;*/
     dock: bottom;
+    background: darkblue;
+    border: white;
 }
+
+/*#metrics {
+
+}*/

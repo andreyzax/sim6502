@@ -15,8 +15,10 @@ from typing import Callable
 
 from rich.text import Text
 from textual.app import App, ComposeResult, RenderResult
+from textual.containers import Horizontal
 from textual.events import Key
 from textual.widget import Widget
+from textual.widgets import Static
 
 import apple_one.system as system
 from apple_one.api import DisplayBackend, KeyboardBackend
@@ -123,26 +125,36 @@ class UI(App):
 
     CSS_PATH = "style.tcss"
 
-    BINDINGS = [("ctrl+c", "quit", "Quit immediately")]
+    BINDINGS = [("ctrl+c", "quit", "Quit immediately"), ("ctrl+s", "stop", "Stop emulator"), ("ctrl+g", "resume", "Resume emulator")]
 
     def __init__(self, runtime: system.TuiRuntime) -> None:
-        """Initilize the interface, accepts a reference to the runtime."""
+        """Initialize the interface, accepts a reference to the runtime."""
         super().__init__()
 
-        self.runtime = runtime
+        self._runtime = runtime
+        self._metrics_widget = Static(id="metrics")
+        self._status_bar_widget = Horizontal(self._metrics_widget, id="status_bar")
 
     def compose(self) -> ComposeResult:
         """Assemble the shell."""
-        yield self.runtime.console
+        yield self._runtime.console
+        yield self._status_bar_widget
 
     def _tick(self):
         """Timer "tick", execute the runtime for a bounded limit of instructions and flush the console."""
-        self.runtime.run_for(5000)
-        self.runtime.console.flush()
+        self._runtime.run_for(5000)
+        self._runtime.console.flush()
+        self._metrics_widget.update(str(self._runtime.metrics))
 
     def on_mount(self) -> None:
         """Standard textual call back, start the runtime timer here."""
         self.set_interval(1 / 60, self._tick, pause=False)
+
+    def action_stop(self):
+        self._runtime.stop()
+
+    def action_resume(self):
+        self._runtime.resume()
 
 
 class TuiKeyboardBackend(KeyboardBackend):
