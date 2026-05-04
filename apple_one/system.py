@@ -11,9 +11,11 @@ import itertools
 import time
 
 import apple_one.terminal as terminal
+import apple_one.tui as tui
 import config
 from apple_one.api import DisplayBackend, KeyboardBackend
 from apple_one.devices import Keyboard, Video
+from apple_one.tui import ConsoleWidget
 from cpu import CPU, CPUTrap
 from memory import MemoryMap, RamSegment, RomSegment
 from runtime import Metrics, Runtime, System
@@ -181,3 +183,41 @@ class TerminalRuntime(Runtime):
                 print(f"Instructions: {res.instructions}, ips: {res.ips:,}, average instruction time: {res.avg_ins_time:.3f}us")
         except CPUTrap as trap:
             self._trap_handler(trap.cpu)
+
+
+class TuiRuntime(Runtime):
+    """Terminal backed runtime class."""
+
+    def __init__(self):
+        """Create a tui backed runtime."""
+        self.console = ConsoleWidget(id="console")
+        self.system = AppleOne(display_backend=tui.TuiDisplayBackend(self.console), keyboard_backend=tui.TuiKeyboardBackend(self.console))
+
+    def _trap_handler(self, cpu: CPU) -> None:
+        pass
+
+    @property
+    def cpu(self) -> CPU:
+        """Get the cpu."""
+        return self.system.cpu
+
+    @property
+    def memory(self) -> MemoryMap:
+        """Get the memory."""
+        return self.system.memory
+
+    def step(self, poll_hardware: bool = False) -> None:
+        """Execute one instruction, optionally polling hardware."""
+        return self.system.step(poll_hardware)
+
+    def run_for(self, upto: int) -> Metrics | None:
+        """
+        Run for at most 'upto' instructions.
+
+        Returns a Metrics object or None.
+        """
+        return self.system.run_for(upto)
+
+    def run(self) -> None:
+        """Dummy method to satisfy base class api."""
+        pass
