@@ -189,11 +189,13 @@ class TerminalRuntime(Runtime):
 class TuiRuntime(Runtime):
     """Terminal backed runtime class."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Create a tui backed runtime."""
         self.console = tui.ConsoleWidget(id="console")
         self.system = AppleOne(display_backend=tui.TuiDisplayBackend(self.console), keyboard_backend=tui.TuiKeyboardBackend(self.console))
         self.ui = tui.UI(self)
+        self._runnable = False
+        self._metrics: Metrics | None = None
 
     def _trap_handler(self, cpu: CPU) -> None:
         pass
@@ -208,6 +210,14 @@ class TuiRuntime(Runtime):
         """Get the memory."""
         return self.system.memory
 
+    @property
+    def metrics(self) -> Metrics:
+        """Property for metrics attribute."""
+        if self._metrics:
+            return self._metrics
+        else:
+            return Metrics(0, 0, 0.0)
+
     def step(self, poll_hardware: bool = False) -> None:
         """Execute one instruction, optionally polling hardware."""
         return self.system.step(poll_hardware)
@@ -218,8 +228,20 @@ class TuiRuntime(Runtime):
 
         Returns a Metrics object or None.
         """
-        return self.system.run_for(upto)
+        if self._runnable:
+            res = self.system.run_for(upto)
+            if res:
+                self._metrics = self._metrics + res
 
     def run(self) -> None:
         """Start the runtime,in this runtime we just start the ui event loop."""
+        self._runnable = True
         self.ui.run()
+
+    def stop(self) -> None:
+        """Stop runtime."""
+        self._runnable = False
+
+    def resume(self) -> None:
+        """Resume emulator."""
+        self._runnable = True
