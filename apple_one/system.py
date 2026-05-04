@@ -126,7 +126,7 @@ class TerminalRuntime(Runtime):
     def __init__(self):
         """Create a terminal backed runtime."""
         if config.terminal_device:
-            device = open(config.terminal_device, "r+b", buffering=0)
+            device = open(config.terminal_device, "r+b", buffering=0)  # noqa: SIM115
             terminal.init_backend(device)
         else:
             terminal.init_backend()
