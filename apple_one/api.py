@@ -1,4 +1,10 @@
-"""This module defines the api between the upper and lower layers of the apple 1 hardware emulation stack."""
+"""
+This module defines the api between the upper and lower layers of the apple 1 hardware emulation stack.
+
+Classes:
+    KeyboardBackend - keyboard backend ABC, defines required api for KeyboardBackend objects
+    DisplayBackend -  display backend ABC, defines required api for DisplayBackend objects
+"""
 
 from abc import ABC, abstractmethod
 

@@ -1,4 +1,14 @@
-"""Implement the TUI hardware backend and TUI runtime."""
+"""
+This module implements the TUI hardware backends and ui shell for the apple 1.
+
+It implements the TUI interface with the textual package.
+Classes:
+    TuiKeyboardBackend - tui Keyboard backend.
+    TuiDisplayBackend - tui Display backend.
+    ConsoleWidget - Apple 1 console tui implementation.
+    UI - tui emulator shell.
+
+"""
 
 from collections import deque
 from typing import Callable
@@ -13,9 +23,21 @@ from apple_one.api import DisplayBackend, KeyboardBackend
 
 
 class ConsoleWidget(Widget):
+    """
+    A textual tui widget that models an Apple 1 console.
+
+    Used by the tui hardware backends and embedded inside the tui runtime shell.
+    """
+
     can_focus = True
 
     def __init__(self, max_lines=500, *args, **kwargs):
+        """
+        Initialize the console.
+
+        Accepts max_lines to set scrollback buffer size. Also accepts any generic
+        textual Widget arguments (id, class,...)
+        """
         super().__init__(*args, **kwargs)
 
         self._lines: deque[str] = deque(maxlen=max_lines)
@@ -25,19 +47,37 @@ class ConsoleWidget(Widget):
         self.border_title = "Console"
 
     def flush(self) -> None:
+        """
+        Sync visible console content with internal buffer.
+
+        Writes to the console won't be shown on screen without calling this.
+        """
         if self._dirty:
             self.refresh()
             self._dirty = False
 
     @property
     def inject_char(self) -> Callable[[str], None] | None:
+        """inject_char property."""
         return self._inject_char
 
     @inject_char.setter
     def inject_char(self, value: Callable[[str], None]) -> None:
+        """
+        inject_char setter.
+
+        This property is a callable which accepts a one char string and is responsible
+        to pass console input to the emulated keyboard interface.
+        """
         self._inject_char = value
 
     def display_char(self, char: str) -> None:
+        """
+        Add a character to the console buffer, handles new line processing.
+
+        This method will not display the new output immediately, flush() must be called
+        to sync the internal buffer with the rendered text.
+        """
         if char == "\n":
             self._lines.append("")
         else:
@@ -46,6 +86,11 @@ class ConsoleWidget(Widget):
         self._dirty = True
 
     def on_key(self, event: Key) -> None:
+        """
+        Respond to textual keyboard input events and inject them to the emulated keyboard interface.
+
+        Handles carriage return (enter key) and control character processing.
+        """
         if self.inject_char:  # we could be called without a set self.inject_char, need to guard against that.
             if event.is_printable:
                 assert event.character is not None
@@ -59,6 +104,11 @@ class ConsoleWidget(Widget):
             pass  # Since we don't have a way to pass input to the emulator, we just do nothing
 
     def render(self) -> RenderResult:
+        """
+        Render the console buffer into the widget content area.
+
+        Only renders the visible part of the buffer.
+        """
         height = max(1, self.content_size.height)
         nlines = len(self._lines)
         visible = nlines - height
@@ -69,24 +119,29 @@ class ConsoleWidget(Widget):
 
 
 class UI(App):
+    """The Apple 1 tui interface shell."""
+
     CSS_PATH = "style.tcss"
 
     BINDINGS = [("ctrl+c", "quit", "Quit immediately")]
 
     def __init__(self, runtime: system.TuiRuntime) -> None:
+        """Initilize the interface, accepts a reference to the runtime."""
         super().__init__()
 
         self.runtime = runtime
 
     def compose(self) -> ComposeResult:
+        """Assemble the shell."""
         yield self.runtime.console
-        # yield Footer()
 
     def _tick(self):
+        """Timer "tick", execute the runtime for a bounded limit of instructions and flush the console."""
         self.runtime.run_for(5000)
         self.runtime.console.flush()
 
     def on_mount(self) -> None:
+        """Standard textual call back, start the runtime timer here."""
         self.set_interval(1 / 60, self._tick, pause=False)
 
 

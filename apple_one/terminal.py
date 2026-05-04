@@ -5,6 +5,10 @@ It implements the console using a tty interface, very little demands are placed 
 the underlying tty device. It only needs to display ascii characters and process new line
 characters correctly. There must also be a way to do non blocking polling for key presses.
 Specifically, this backend doesn't use any cursor navigation, text formatting, color or any other escape sequences.
+
+Classes:
+    TerminalKeyboardBackend - terminal Keyboard backend
+    TerminalDisplayBackend - terminal Display backend
 """
 
 import atexit
