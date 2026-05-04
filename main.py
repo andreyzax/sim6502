@@ -7,13 +7,11 @@ This assembles a simple apple 1 like system with wozmon, apple basic and a demo 
 
 from argparse import ArgumentParser
 
+from textual.app import App, ComposeResult
+from textual.widgets import Footer
+
 import config
-
-# from textual import events
-# from textual.app import ComposeResult
-from apple_one.system import TerminalRuntime
-
-# from apple_one.tui import TTY
+from apple_one.system import TerminalRuntime, TuiRuntime
 
 
 def process_arguments() -> None:
@@ -32,26 +30,26 @@ def process_arguments() -> None:
         config.terminal_device = args.tty
 
 
-# def tui_main():
-#    from textual.app import App
-#    from textual.containers import HorizontalGroup
-#    from textual.widgets import Placeholder
-#
-#    class UI(App):
-#        CSS_PATH = "style.tcss"
-#
-#        def compose(self) -> ComposeResult:
-#            yield HorizontalGroup(TTY(columns=40, lines=24, id="console"), Placeholder("Memory", id="memory_view"))
-#            yield Placeholder("Statusbar", id="status_bar")
-#
-#        def on_key(self, event: events.Key) -> None:
-#            if event.is_printable:
-#                assert event.character is not None
-#                self.query_one(TTY).put_char(ord(event.character))
-#            if event.name == "enter":
-#                self.query_one(TTY).put_char(0xA)
-#
-#    UI().run()
+class UI(App):
+    CSS_PATH = "style.tcss"
+
+    BINDINGS = [("ctrl+c", "quit", "Quit immediately")]
+
+    def __init__(self, runtime: TuiRuntime) -> None:
+        super().__init__()
+
+        self.runtime = runtime
+
+    def compose(self) -> ComposeResult:
+        yield self.runtime.console
+        yield Footer()
+
+    def _tick(self):
+        self.runtime.run_for(5000)
+        self.runtime.console.flush()
+
+    def on_mount(self) -> None:
+        self.set_interval(1 / 60, self._tick, pause=False)
 
 
 if __name__ == "__main__":
@@ -59,6 +57,10 @@ if __name__ == "__main__":
 
     if config.backend == "terminal":
         runtime = TerminalRuntime()
+        runtime.run()
+    elif config.backend == "tui":
+        ui = UI(TuiRuntime())
+        ui.run()
     else:
         raise RuntimeError(f"Backend ({config.backend}) is not supported.")
 
