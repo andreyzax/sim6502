@@ -73,6 +73,10 @@ class Metrics:
 
         return self
 
+    def __str__(self) -> str:
+        """Human readable representation."""
+        return f"Instructions: {self.instructions}, ips: {self.ips:,}, average instruction time: {self.avg_ins_time:.3f}us"
+
 
 class System(ABC):
     """
