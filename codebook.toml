@@ -1,7 +1,16 @@
 words = [
     "atexit",
+    "bdizc",
     "brk",
     "getitem",
+    "iadd",
+    "ips",
+    "nlines",
+    "pyright",
+    "radd",
+    "roms",
     "setitem",
+    "tcss",
+    "upto",
     "wozmon",
 ]
