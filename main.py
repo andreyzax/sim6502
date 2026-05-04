@@ -7,9 +7,6 @@ This assembles a simple apple 1 like system with wozmon, apple basic and a demo 
 
 from argparse import ArgumentParser
 
-from textual.app import App, ComposeResult
-from textual.widgets import Footer
-
 import config
 from apple_one.system import TerminalRuntime, TuiRuntime
 
@@ -30,36 +27,22 @@ def process_arguments() -> None:
         config.terminal_device = args.tty
 
 
-class UI(App):
-    CSS_PATH = "style.tcss"
+def main() -> None:
+    """
+    Entry point for the emulator.
 
-    BINDINGS = [("ctrl+c", "quit", "Quit immediately")]
-
-    def __init__(self, runtime: TuiRuntime) -> None:
-        super().__init__()
-
-        self.runtime = runtime
-
-    def compose(self) -> ComposeResult:
-        yield self.runtime.console
-        yield Footer()
-
-    def _tick(self):
-        self.runtime.run_for(5000)
-        self.runtime.console.flush()
-
-    def on_mount(self) -> None:
-        self.set_interval(1 / 60, self._tick, pause=False)
-
-
-if __name__ == "__main__":
+    Generic configuration processing, runtime selection and start up.
+    """
     process_arguments()
 
     if config.backend == "terminal":
         runtime = TerminalRuntime()
-        runtime.run()
     elif config.backend == "tui":
-        ui = UI(TuiRuntime())
-        ui.run()
+        runtime = TuiRuntime()
     else:
         raise RuntimeError(f"Backend ({config.backend}) is not supported.")
+    runtime.run()
+
+
+if __name__ == "__main__":
+    main()

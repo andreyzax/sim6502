@@ -4,10 +4,11 @@ from collections import deque
 from typing import Callable
 
 from rich.text import Text
-from textual.app import RenderResult
+from textual.app import App, ComposeResult, RenderResult
 from textual.events import Key
 from textual.widget import Widget
 
+import apple_one.system as system
 from apple_one.api import DisplayBackend, KeyboardBackend
 
 
@@ -65,6 +66,28 @@ class ConsoleWidget(Widget):
             return ""
 
         return Text("\n".join([line for line_number, line in enumerate(self._lines) if line_number >= visible]))
+
+
+class UI(App):
+    CSS_PATH = "style.tcss"
+
+    BINDINGS = [("ctrl+c", "quit", "Quit immediately")]
+
+    def __init__(self, runtime: system.TuiRuntime) -> None:
+        super().__init__()
+
+        self.runtime = runtime
+
+    def compose(self) -> ComposeResult:
+        yield self.runtime.console
+        # yield Footer()
+
+    def _tick(self):
+        self.runtime.run_for(5000)
+        self.runtime.console.flush()
+
+    def on_mount(self) -> None:
+        self.set_interval(1 / 60, self._tick, pause=False)
 
 
 class TuiKeyboardBackend(KeyboardBackend):

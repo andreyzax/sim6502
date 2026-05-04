@@ -15,7 +15,6 @@ import apple_one.tui as tui
 import config
 from apple_one.api import DisplayBackend, KeyboardBackend
 from apple_one.devices import Keyboard, Video
-from apple_one.tui import ConsoleWidget
 from cpu import CPU, CPUTrap
 from memory import MemoryMap, RamSegment, RomSegment
 from runtime import Metrics, Runtime, System
@@ -190,8 +189,9 @@ class TuiRuntime(Runtime):
 
     def __init__(self):
         """Create a tui backed runtime."""
-        self.console = ConsoleWidget(id="console")
+        self.console = tui.ConsoleWidget(id="console")
         self.system = AppleOne(display_backend=tui.TuiDisplayBackend(self.console), keyboard_backend=tui.TuiKeyboardBackend(self.console))
+        self.ui = tui.UI(self)
 
     def _trap_handler(self, cpu: CPU) -> None:
         pass
@@ -219,5 +219,5 @@ class TuiRuntime(Runtime):
         return self.system.run_for(upto)
 
     def run(self) -> None:
-        """Dummy method to satisfy base class api."""
-        pass
+
+        self.ui.run()
