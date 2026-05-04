@@ -4,6 +4,8 @@ This module implements the Apple 1 system emulator.
 Classes:
     AppleOne - The system emulator, consumes hardware implementation objects for the apple 1 input and video interfaces
     and exposes a runtime control api.
+    TerminalRuntime - raw tty based runtime controller, implements the tty emulator.
+    TuiRuntime - TUI based runtime controller, implements the tui (textual) emulator.
 
 """
 
@@ -171,9 +173,9 @@ class TerminalRuntime(Runtime):
 
     def run(self) -> None:
         """
-        Start the cpu's run loop, we only stop due to exceptions.
+        Start the runtime.
 
-        Returns None.
+        Start the cpu's run loop, print runtime metrics if they are returned. Handle CPUTrap exception.
         """
         try:
             res = self.system.run()
@@ -219,5 +221,5 @@ class TuiRuntime(Runtime):
         return self.system.run_for(upto)
 
     def run(self) -> None:
-
+        """Start the runtime,in this runtime we just start the ui event loop."""
         self.ui.run()
