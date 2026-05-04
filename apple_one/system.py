@@ -120,14 +120,6 @@ class AppleOne(System):
         return self._cpu
 
 
-def get_system(backend: str) -> AppleOne:
-    """Apple 1 system factory method."""
-    if backend == "terminal":
-        return AppleOne(display_backend=terminal.TerminalDisplayBackend(), keyboard_backend=terminal.TerminalKeyboardBackend())
-    else:
-        raise RuntimeError(f"Backend ({backend}) is not supported")
-
-
 class TerminalRuntime(Runtime):
     """Terminal backed runtime class."""
 
@@ -139,8 +131,7 @@ class TerminalRuntime(Runtime):
         else:
             terminal.init_backend()
 
-        self.system = get_system("terminal")
-        self.step = self.system.step
+        self.system = AppleOne(display_backend=terminal.TerminalDisplayBackend(), keyboard_backend=terminal.TerminalKeyboardBackend())
 
     def _trap_handler(self, cpu: CPU) -> None:
         """Handle cpu traps, currently only gets triggered if `config.trap_brk` is true."""
