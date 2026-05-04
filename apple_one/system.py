@@ -181,7 +181,7 @@ class TerminalRuntime(Runtime):
             res = self.system.run()
             print("\nExecution stopped.")
             if res:
-                print(f"Instructions: {res.instructions}, ips: {res.ips:,}, average instruction time: {res.avg_ins_time:.3f}us")
+                print(res)
         except CPUTrap as trap:
             self._trap_handler(trap.cpu)
 
