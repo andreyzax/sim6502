@@ -21,6 +21,7 @@ from textual.widget import Widget
 from textual.widgets import Static
 
 import apple_one.system as system
+import config
 from apple_one.api import DisplayBackend, KeyboardBackend
 
 
@@ -125,15 +126,27 @@ class UI(App):
 
     CSS_PATH = "style.tcss"
 
-    BINDINGS = [("ctrl+c", "quit", "Quit immediately"), ("ctrl+s", "stop", "Stop emulator"), ("ctrl+g", "resume", "Resume emulator")]
+    BINDINGS = [
+        ("ctrl+c", "quit", "Quit immediately"),
+        ("ctrl+s", "stop", "Stop emulator"),
+        ("ctrl+g", "resume", "Resume emulator"),
+        ("ctrl+a", "metrics_toggle", "Show/Hide metrics"),
+    ]
 
     def __init__(self, runtime: system.TuiRuntime) -> None:
         """Initialize the interface, accepts a reference to the runtime."""
         super().__init__()
 
         self._runtime = runtime
-        self._metrics_widget = Static(id="metrics")
-        self._status_bar_widget = Horizontal(self._metrics_widget, id="status_bar")
+
+        if config.enable_runtime_perf_metrics:
+            self._metrics_widget = Static(id="metrics")
+        self._registers_widget = Static(id="registers")
+        self._flags_widget = Static(id="flags")
+        if config.enable_runtime_perf_metrics:
+            self._status_bar_widget = Horizontal(self._metrics_widget, self._registers_widget, self._flags_widget, id="status_bar")
+        else:
+            self._status_bar_widget = Horizontal(self._registers_widget, self._flags_widget, id="status_bar")
 
     def compose(self) -> ComposeResult:
         """Assemble the shell."""
@@ -169,7 +182,17 @@ class UI(App):
         """Pause the emulator."""
         self._runtime.stop()
 
-    def action_resume(self):
+    def action_metrics_toggle(self) -> None:
+        """Toggle metrics widget display."""
+        if config.enable_runtime_perf_metrics:
+            self._metrics_widget.display = not self._metrics_widget.display
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        """Disable the metrics toggle command if metrics are disabled."""
+        return not (action == "metrics_toggle" and not config.enable_runtime_perf_metrics)
+
+    def action_resume(self) -> None:
+        """Resume the emulator."""
         self._runtime.resume()
 
 
