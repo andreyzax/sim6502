@@ -37,7 +37,7 @@ pythonpath = ["."]
 type = "uv"
 
 [tool.poe.tasks]
-profile = "python tools/profile_.py"
+profile = "python -OO tools/profile_.py"
 
 [tool.poe.tasks.test-py311]
 cmd = "pytest -s --cov memory --cov cpu  --cov assembly --cov mmio --cov-branch  --cov-report=term-missing   ./tests/"
