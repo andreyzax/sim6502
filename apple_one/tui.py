@@ -175,7 +175,7 @@ class UI(App):
 
     def _short_tick(self) -> None:
         """Timer "tick", execute the runtime for a bounded limit of instructions and flush the console."""
-        self._runtime.run_for(1000)
+        self._runtime.run_for(300)
 
     def _tick(self) -> None:
         self._runtime.console.flush()
