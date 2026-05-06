@@ -46,6 +46,7 @@ class ConsoleWidget(Widget):
         self._lines: deque[str] = deque(maxlen=max_lines)
         self._inject_char: Callable[[str], None] | None = None
         self._dirty = False
+        self._cursor = Text("@", style="blink")
 
         self.border_title = "Console"
 
@@ -118,7 +119,26 @@ class ConsoleWidget(Widget):
         if height == 0:
             return ""
 
-        return Text("\n".join([line for line_number, line in enumerate(self._lines) if line_number >= visible]))
+        content = "\n".join([line for line_number, line in enumerate(self._lines) if line_number >= visible])
+        return Text(content) + self._cursor
+
+    def stop(self) -> None:
+        """
+        Stops the console.
+
+        Currently this only stops the cursor blink.
+        """
+        self._cursor = Text("@", style="")
+        self.refresh()
+
+    def resume(self) -> None:
+        """
+        Resume the console.
+
+        Currently, just resumes the cursor blink.
+        """
+        self._cursor = Text("@", style="blink")
+        self.refresh()
 
 
 class UI(App):
