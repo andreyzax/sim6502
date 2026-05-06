@@ -126,11 +126,12 @@ class Instruction:
 
     __match_args__ = ("operation", "mode", "operand", "op_code")
 
-    def __init__(self, op: Operation, mode: AddressMode, operand: int | None = None):
+    def __init__(self, op: Operation, mode: AddressMode, opcode: int | None = None, operand: int | None = None):
         """Initialize the passed in attributes and then the derived attributes."""
         self._operation = op
         self._mode = mode
         self._operand = operand
+        self._opcode = opcode
 
     def _encode(self) -> bytes:
         try:
@@ -180,7 +181,7 @@ class Instruction:
             case _:
                 operand = i[1]
 
-        return Instruction(op=isa_entry.operation, mode=isa_entry.mode, operand=operand)
+        return Instruction(op=isa_entry.operation, mode=isa_entry.mode, opcode=opcode, operand=operand)
 
     @property
     def operation(self) -> Operation:
@@ -205,6 +206,7 @@ class Instruction:
         self.__dict__.pop("machine_code", None)
         self.__dict__.pop("size", None)
         self.__dict__.pop("opcode", None)
+        self._opcode = None
 
     @mode.setter
     def mode(self, value: AddressMode) -> None:
@@ -214,6 +216,7 @@ class Instruction:
         self.__dict__.pop("machine_code", None)
         self.__dict__.pop("size", None)
         self.__dict__.pop("opcode", None)
+        self._opcode = None
 
     @operand.setter
     def operand(self, value: int | None) -> None:
@@ -223,6 +226,7 @@ class Instruction:
         self.__dict__.pop("machine_code", None)
         self.__dict__.pop("size", None)
         self.__dict__.pop("opcode", None)
+        self._opcode = None
 
     @cached_property
     def machine_code(self) -> bytes:
@@ -231,19 +235,17 @@ class Instruction:
 
     @cached_property
     def size(self) -> int:
-        """Implement derived size property."""
-        # return len(self._encode())
-        instructions = _isa.opcode_index[self.operation]
-        for ins in instructions:
-            if ins[1].mode == self.mode:
-                return ins[1].size
+        """Return instruction size."""
+        return _isa.opcode_map[self.opcode].size
 
-        raise RuntimeError(f"Invalid address mode for instruction ({self})")
-
-    @cached_property
+    @property
     def opcode(self) -> int:
         """Implement derived opcode property."""
-        return self._encode()[0]
+        if self._opcode:
+            return self._opcode
+        else:
+            self._opcode = self._encode()[0]
+            return self._opcode
 
     def __eq__(self, other) -> bool:
         """

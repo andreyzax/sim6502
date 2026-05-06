@@ -1507,7 +1507,7 @@ def test_instruction_attribute_caching():
 def test_assembly_instruction_size():
     for isa_entry in _isa.opcode_map.values():
         if isa_entry.mode != AddressMode.Implicit:
-            ins = Instruction(isa_entry.operation, isa_entry.mode, 0)
+            ins = Instruction(isa_entry.operation, isa_entry.mode, operand=0)
         else:
             ins = Instruction(isa_entry.operation, isa_entry.mode)
 
