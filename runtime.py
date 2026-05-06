@@ -26,6 +26,7 @@ class Metrics:
     avg_ins_time - average instruction execution time.
     """
 
+    runtime: int
     instructions: int
     ips: int
     avg_ins_time: float  # microseconds
@@ -42,7 +43,7 @@ class Metrics:
         # ...
         # accumulator = accumulator + Metrics(...)
         if other is None:
-            return type(self)(instructions=self.instructions, ips=self.ips, avg_ins_time=self.avg_ins_time)
+            return type(self)(runtime=self.runtime, instructions=self.instructions, ips=self.ips, avg_ins_time=self.avg_ins_time)
 
         if not isinstance(other, type(self)):
             return NotImplemented
@@ -51,6 +52,7 @@ class Metrics:
         new_ips = (self.ips * self.instructions + other.ips * other.instructions) / total_instructions
         new_avg_ins_time = (self.avg_ins_time * self.instructions + other.avg_ins_time * other.instructions) / total_instructions
         return type(self)(
+            runtime=self.runtime + other.runtime,
             instructions=total_instructions,
             ips=round(new_ips),
             avg_ins_time=new_avg_ins_time,
@@ -67,6 +69,7 @@ class Metrics:
         new_ips = (self.ips * self.instructions + other.ips * other.instructions) / total_instructions
         new_avg_ins_time = (self.avg_ins_time * self.instructions + other.avg_ins_time * other.instructions) / total_instructions
 
+        self.runtime += other.runtime
         self.instructions = total_instructions
         self.ips = round(new_ips)
         self.avg_ins_time = new_avg_ins_time
@@ -75,7 +78,9 @@ class Metrics:
 
     def __str__(self) -> str:
         """Human readable representation."""
-        return f"Instructions: {self.instructions}, ips: {self.ips:,}, average instruction time: {self.avg_ins_time:.3f}us"
+        return (
+            f"Instructions: {self.instructions:8}, runtime: {self.runtime / 10**9:6.3f} seconds, ips: {self.ips:8,}, average instruction time: {self.avg_ins_time:2.3f}us"
+        )
 
 
 class System(ABC):
