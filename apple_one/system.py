@@ -241,7 +241,9 @@ class TuiRuntime(Runtime):
     def stop(self) -> None:
         """Stop runtime."""
         self._runnable = False
+        self.console.stop()
 
     def resume(self) -> None:
         """Resume emulator."""
         self._runnable = True
+        self.console.resume()
