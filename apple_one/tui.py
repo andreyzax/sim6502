@@ -140,17 +140,33 @@ class UI(App):
         yield self._runtime.console
         yield self._status_bar_widget
 
-    def _tick(self):
+    def _short_tick(self) -> None:
         """Timer "tick", execute the runtime for a bounded limit of instructions and flush the console."""
-        self._runtime.run_for(5000)
+        self._runtime.run_for(1000)
+
+    def _tick(self) -> None:
         self._runtime.console.flush()
-        self._metrics_widget.update(str(self._runtime.metrics))
+        self._registers_widget.update(
+            f"a={self._runtime.cpu.a:02X}, x={self._runtime.cpu.x:02X}, y={self._runtime.cpu.y:02X}\nsp={self._runtime.cpu.s:02X}, pc={self._runtime.cpu.pc:04X}"
+        )
+        self._flags_widget.update(f"flags:   NV-BDIZC\n         {str(self._runtime.cpu.p)}")
+
+    def _long_tick(self) -> None:
+        if config.enable_runtime_perf_metrics:
+            self._metrics_widget.update(str(self._runtime.metrics))
 
     def on_mount(self) -> None:
         """Standard textual call back, start the runtime timer here."""
-        self.set_interval(1 / 60, self._tick, pause=False)
+        self.set_interval(0.001, self._short_tick, name="short_tick", pause=False)
+        self.set_interval(0.0167, self._tick, name="tick", pause=False)
+        self.set_interval(1, self._long_tick, name="long_tick", pause=False)
 
-    def action_stop(self):
+        self._short_tick()
+        self._tick()
+        self._long_tick()
+
+    def action_stop(self) -> None:
+        """Pause the emulator."""
         self._runtime.stop()
 
     def action_resume(self):
