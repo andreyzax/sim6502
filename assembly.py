@@ -11,6 +11,8 @@ from enum import Enum, auto
 from functools import cached_property
 from typing import NamedTuple
 
+from memory import MemoryMapView
+
 
 class EncodingError(Exception):
     """Raise when Instruction object isn't a valid instruction."""
@@ -160,7 +162,7 @@ class Instruction:
                 return bytes((opcode, self.operand))
 
     @staticmethod
-    def decode(i: bytes | bytearray | memoryview) -> "Instruction":
+    def decode(i: bytes | bytearray | MemoryMapView) -> "Instruction":
         """Decode the raw machine code and return an Instruction object, this method only decodes a single instruction from the bytestream."""
         try:
             opcode = i[0]

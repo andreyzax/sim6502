@@ -743,7 +743,7 @@ class CPU:
     def _decode(self) -> Instruction:
         # Always feed Instruction.decode the next 3 bytes since that is the maximum 6502 instruction size.
         # The execute_instruction method will only advance the program counter by the actual decoded instruction size.
-        return Instruction.decode(bytes([self.memory[self.pc], self.memory[(self.pc + 1) & 0xFFFF], self.memory[self.pc + 2 & 0xFFFF]]))
+        return Instruction.decode(self.memory[self.pc : self.pc + 3])
 
     def load(self, base: int, source: bytes | BufferedIOBase) -> None:
         """Load data into memory."""

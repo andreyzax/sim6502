@@ -2,6 +2,7 @@
 This module defines the memory class used as system memory for our emulated computer.
 
 Classes:
+    MemoryMapView - A zero copy view into a MemoryMap object
     MemoryMap - Models the system's memory map
     MemorySegment - A contiguous region of memory
     RamSegment - A ram memory area
@@ -215,6 +216,46 @@ class RomSegment(MemorySegment):
         self._validate_address(address)  # Here to raise IndexError exceptions, we do nothing with the actual value!
 
 
+class MemoryMapView:
+    """Zero copy view of a MemoryMap class."""
+
+    def __init__(self, s: slice, mm: "MemoryMap") -> None:
+        self.base_address, self.last_address, self.step = s.indices(ADDRESS_SPACE_SIZE)
+        self.last_address -= 1
+
+        self.mm = mm
+
+    def __getitem__(self, address) -> int:
+        if self.base_address + address * self.step > self.last_address:
+            raise IndexError
+
+        return self.mm[self.base_address + address * self.step]
+
+    def __setitem__(self, address, value) -> None:
+        if self.base_address + address * self.step > self.last_address:
+            raise IndexError
+
+        self.mm[self.base_address + address * self.step] = value
+
+    def __iter__(self):
+        i = self.base_address
+        while i <= self.last_address:
+            yield self.mm[i]
+            i += self.step
+
+    def __len__(self) -> int:
+        return len(range(self.base_address, self.last_address + 1, self.step))
+        # return (self.last_address - self.base_address + 1) // self.step
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, (MemoryMapView, bytes, bytearray)):
+            return NotImplemented
+        if len(self) != len(other):
+            return False
+
+        return all(n == other[i] for i, n in enumerate(self))
+
+
 class MemoryMap:
     """
     Models the system's memory map.
@@ -283,9 +324,9 @@ class MemoryMap:
     @overload
     def __getitem__(self, address: int) -> int: ...
     @overload
-    def __getitem__(self, address: slice) -> bytes: ...
+    def __getitem__(self, address: slice) -> MemoryMapView: ...
 
-    def __getitem__(self, address: int | slice) -> int | bytes:
+    def __getitem__(self, address: int | slice) -> int | MemoryMapView:
         """Read data from to our memory, can ba single byte or a bytes like object for slice operations."""
         if isinstance(address, int):
             segment_idx = bisect_right(self._sorted_base_addresses, address) - 1
@@ -294,9 +335,8 @@ class MemoryMap:
 
             return self._default_value
         else:
-            index_range = range(*address.indices(ADDRESS_SPACE_SIZE))
-            return bytes([self.__getitem__(i) for i in index_range])  # Yes we recursively call ourselves,
-            # shouldn't be an issue since this always calls the other branch of the function which is non recursive.
+            assert type(address) is slice
+            return MemoryMapView(address, self)
 
     @overload
     def __setitem__(self, address: int, value: int) -> None: ...
