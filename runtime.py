@@ -58,7 +58,7 @@ class Metrics:
             avg_ins_time=new_avg_ins_time,
         )
 
-    __radd__ = __add__  # Make self + other equvilent to other + self
+    __radd__ = __add__  # Make self + other equivalent to other + self
 
     def __iadd__(self, other: Self | None) -> Self:
         """Self increment version of __add__()."""
