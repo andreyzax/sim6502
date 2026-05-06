@@ -99,7 +99,7 @@ class ConsoleWidget(Widget):
                 self.inject_char(event.character)
             if event.name == "enter":
                 self.inject_char("\n")
-            if event.name in ("ctrl_r", "ctrl_d", "escape"):
+            if event.name in ("ctrl_r", "ctrl_d"):
                 assert event.character is not None
                 self.inject_char(event.character)
         else:
