@@ -562,6 +562,9 @@ class CPU:
 
             return res
 
+        def __str__(self) -> str:
+            return "".join("#" if flag else "_" for flag in (self.negative, self.overflow, True, True, self.decimal, self.interrupt_disable, self.zero, self.carry))
+
     def reset(self):
         """Reset the cpu state."""
         self._a = self._init_a
