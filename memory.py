@@ -13,10 +13,13 @@ from abc import ABC, abstractmethod
 from bisect import bisect_right
 from functools import total_ordering
 from pathlib import Path
-from typing import BinaryIO, Self, cast, overload
+from typing import Any, BinaryIO, Self, cast, overload
+
+import cachetools
 
 ADDRESS_SPACE_SIZE = 1024 * 64
 LAST_ADDRESS = ADDRESS_SPACE_SIZE - 1
+CACHE_SIZE = 256
 
 
 @total_ordering
@@ -272,6 +275,7 @@ class MemoryMap:
         Merge overlapping ram and rom segments separately but disallow ram overlapping with rom
         """
         self._default_value = default_value if default_value in range(0, 256) else 0xFF
+        self._cache = cachetools.LRUCache(maxsize=CACHE_SIZE)
 
         ram_list: list[RamSegment] = []
         other_list: list[MemorySegment] = []
@@ -328,10 +332,17 @@ class MemoryMap:
 
     def __getitem__(self, address: int | slice) -> int | MemoryMapView:
         """Read data from to our memory, can ba single byte or a bytes like object for slice operations."""
-        if isinstance(address, int):
+        if type(address) is int:
+            if address in self._cache:
+                return self._cache[address]
+
             segment_idx = bisect_right(self._sorted_base_addresses, address) - 1
             if segment_idx >= 0 and address <= self._memory_map[segment_idx].last_address:
-                return self._memory_map[segment_idx][address]
+                if type(self._memory_map[segment_idx]) is RamSegment:
+                    self._cache[address] = self._memory_map[segment_idx][address]
+                    return self._memory_map[segment_idx][address]
+                else:
+                    return self._memory_map[segment_idx][address]
 
             return self._default_value
         else:
@@ -349,6 +360,9 @@ class MemoryMap:
         if isinstance(address, int) and isinstance(value, int):
             if value not in range(0, 256):
                 raise ValueError("Only byte values can be stored")
+
+            if address in self._cache:
+                del self._cache[address]
 
             for segment in self._memory_map:
                 try:
