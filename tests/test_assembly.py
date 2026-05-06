@@ -122,9 +122,7 @@ def test_implicit_instruction_decoding(instruction, encoding):
 
 def test_inalid_implicit_instructions():
     for item in test_matrix:
-        validate_encoding_exception(
-            Instruction(op=item.instruction.operation, mode=AddressMode.Implicit, operand=0xFE), pytest.raises(EncodingError)
-        )
+        validate_encoding_exception(Instruction(op=item.instruction.operation, mode=AddressMode.Implicit, operand=0xFE), pytest.raises(EncodingError))
 
     for address_mode in AddressMode:
         if address_mode == AddressMode.Implicit:

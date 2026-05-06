@@ -71,10 +71,7 @@ class MemorySegment(ABC):
             return NotImplemented
 
         return (self.base_address <= value.base_address and value.base_address <= self.last_address) or (
-            self.base_address <= value.last_address
-            and value.last_address <= self.last_address
-            or self.__contains__(value)
-            or value.__contains__(self)
+            self.base_address <= value.last_address and value.last_address <= self.last_address or self.__contains__(value) or value.__contains__(self)
         )
 
     __rand__ = __and__
@@ -144,9 +141,7 @@ class RamSegment(MemorySegment):
 class RomSegment(MemorySegment):
     """A memory segment that is backed by rom."""
 
-    def __init__(
-        self, base_address: int, *, size: int | None = None, bytes_source: bytes | None = None, binary_file_source: BinaryIO | None = None
-    ) -> None:
+    def __init__(self, base_address: int, *, size: int | None = None, bytes_source: bytes | None = None, binary_file_source: BinaryIO | None = None) -> None:
         """
         Allocate a 'bytes' object for the segment.
 
