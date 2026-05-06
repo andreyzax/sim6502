@@ -93,7 +93,7 @@ class AppleOne(System):
             if config.enable_runtime_perf_metrics:
                 start = time.perf_counter_ns()
 
-            if i % 10000 == 0:
+            if i % 1000 == 0:
                 self.step(poll_hardware=True)
             else:
                 self.step()
