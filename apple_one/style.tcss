@@ -1,10 +1,7 @@
 Screen {
     align: center middle;
+    background: darkblue;
 }
-
-/*HorizontalGroup {
-    height: 100%;
-}*/
 
 #console {
     box_sizing: content-box;
@@ -14,14 +11,16 @@ Screen {
     padding: 2;
     /*min-height: 24;
     max-width: 33%;*/
-    background: darkblue;
-    border: heavy white;
+    color: #e69500;
+    text-style: bold;
+    background: black;
+    border: heavy #e69500;
     scrollbar-visibility: hidden;
 }
 
-#console:focus {
+/*#console:focus {
     border: heavy yellow;
-}
+}*/
 
 /*#memory_view {
     min-width: 54;
@@ -30,12 +29,17 @@ Screen {
 
 #status_bar {
     height: auto;
-    /*min-height: 2;*/
     dock: bottom;
     background: darkblue;
     border: white;
 }
 
-/*#metrics {
+#metrics {
+    width: auto;
+    padding-right: 3;
+}
 
-}*/
+#registers {
+    width: auto;
+    padding-right: 3;
+}
