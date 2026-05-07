@@ -1,7 +1,7 @@
 import pytest
 
 from typing import Any, NamedTuple
-from assembly import Instruction, Operation, AddressMode, EncodingError, _isa
+from assembly import Instruction, Operation, AddressMode, EncodingError, isa
 
 
 def validate_encoding(instruction, encoding):
@@ -1503,7 +1503,7 @@ def test_instruction_attribute_caching():
 
 
 def test_assembly_instruction_size():
-    for isa_entry in _isa.opcode_map.values():
+    for isa_entry in isa.opcode_map.values():
         if isa_entry.mode != AddressMode.Implicit:
             ins = Instruction(isa_entry.operation, isa_entry.mode, operand=0)
         else:
