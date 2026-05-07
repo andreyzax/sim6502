@@ -1,0 +1,39 @@
+Screen {
+    align: center middle;
+    background: darkblue;
+}
+
+#error-log {
+    padding: 2;
+    /*min-height: 24;
+    max-width: 33%;*/
+    color: white;
+    background: darkblue;
+    border: heavy white;
+}
+
+/*#console:focus {
+    border: heavy yellow;
+}*/
+
+/*#memory_view {
+    min-width: 54;
+    min-height: 24;
+    }*/
+
+#status_bar {
+    height: auto;
+    dock: bottom;
+    background: darkblue;
+    border: white;
+}
+
+#metrics {
+    width: auto;
+    padding-right: 3;
+}
+
+#registers {
+    width: auto;
+    padding-right: 3;
+}

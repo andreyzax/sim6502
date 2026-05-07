@@ -8,6 +8,7 @@ This assembles a simple apple 1 like system with wozmon, apple basic and a demo 
 from argparse import ArgumentParser
 
 import config
+import headless
 from apple_one.system import TerminalRuntime, TuiRuntime
 
 
@@ -39,8 +40,11 @@ def main() -> None:
         runtime = TerminalRuntime()
     elif config.backend == "tui":
         runtime = TuiRuntime()
+    elif config.backend == "headless":
+        runtime = headless.TuiRuntime()
     else:
         raise RuntimeError(f"Backend ({config.backend}) is not supported.")
+
     runtime.run()
 
 
