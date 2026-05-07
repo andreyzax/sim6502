@@ -19,7 +19,7 @@ from io import BufferedIOBase
 from typing import Callable
 
 import config
-from assembly import AddressMode, Instruction, Operation
+from assembly import AddressMode, DecodingError, Instruction, Operation, isa
 from memory import ADDRESS_SPACE_SIZE, MemoryMap
 
 
@@ -29,6 +29,18 @@ class CPUTrap(Exception):
     def __init__(self, cpu: "CPU"):
         """Pass in the CPU object as the trap context."""
         self.cpu = cpu
+
+
+@dataclass
+class Decoded_instruction:
+    op: Operation
+    mode: AddressMode
+    size: int
+    operand_field: int | None = None  # Decoded operand from instruction
+    operand: int | None = None  # Actual input data for the current operation
+
+    def __str__(self) -> str:
+        return f"<{self.op}, {self.mode}, {self.operand_field}, {self.operand}>"
 
 
 class CPU:
@@ -115,48 +127,49 @@ class CPU:
         address = (base_address + self.y) & 0xFFFF
         return self.memory[address]
 
-    def _fetch_operand(self, ins: Instruction) -> int:
-        if ins.mode == AddressMode.Implicit:
-            raise RuntimeError(f"CAn't fetch an operand for Instruction {ins} which is an implicit mode instruction")
+    def _fetch_operand(self) -> None:
+        if self.ci.mode == AddressMode.Implicit:
+            raise RuntimeError(f"Can't fetch an operand for instruction at {self.pc:04X} which is an implicit mode instruction")
 
-        if ins.operand is None:
-            raise RuntimeError(f"Instruction {ins} requires an operand")
+        # if self.ci.operand_field is None:
+        #    raise RuntimeError(f"Instruction {self.ci} requires an operand")
 
-        if ins.mode == AddressMode.Immediate or ins.mode == AddressMode.Relative:
-            return ins.operand
+        assert self.ci.operand_field is not None
+        if self.ci.mode == AddressMode.Immediate or self.ci.mode == AddressMode.Relative:
+            self.ci.operand = self.ci.operand_field
         else:
-            return self._address_mode_dispatch[ins.mode.value](ins.operand)
+            self.ci.operand = self._address_mode_dispatch[self.ci.mode.value](self.ci.operand_field)
 
-    def _compute_address(self, ins: Instruction) -> int:
-        if ins.operand is None:
-            raise RuntimeError(f"Can't compute address for instruction: {ins} without an operand")
+    def _compute_address(self) -> int:
+        if self.ci.operand_field is None:
+            raise RuntimeError(f"Can't compute address for instruction: {self.ci} without an operand")
 
-        match ins.mode:
+        match self.ci.mode:
             # Indirect and relative addressing modes are not covered here
             # and are handled as a special case by the instructions using them.
             # It's (obviously) impossible to compute the address of implicit or immediate modes
 
             case AddressMode.Absolute | AddressMode.ZeroPage:
-                return ins.operand
+                return self.ci.operand_field
             case AddressMode.AbsoluteX:
-                return (ins.operand + self.x) & 0xFFFF
+                return (self.ci.operand_field + self.x) & 0xFFFF
             case AddressMode.AbsoluteY:
-                return (ins.operand + self.y) & 0xFFFF
+                return (self.ci.operand_field + self.y) & 0xFFFF
             case AddressMode.ZeroPageX:
-                return (ins.operand + self.x) & 0xFF
+                return (self.ci.operand_field + self.x) & 0xFF
             case AddressMode.ZeroPageY:
-                return (ins.operand + self.y) & 0xFF
+                return (self.ci.operand_field + self.y) & 0xFF
             case AddressMode.IndirectX:
-                return self._fetch_zero_page_16bit(ins.operand + self.x)
+                return self._fetch_zero_page_16bit(self.ci.operand_field + self.x)
             case AddressMode.IndirectY:
-                pointer = self._fetch_zero_page_16bit(ins.operand)
+                pointer = self._fetch_zero_page_16bit(self.ci.operand_field)
                 return (pointer + self.y) & 0xFFFF
             case _:
-                raise RuntimeError(f"Can't compute address for mode: {ins.mode}")
+                raise RuntimeError(f"Can't compute address for mode: {self.ci.mode}")
 
-    def _do_register_instructions(self, ins: Instruction) -> None:
+    def _do_register_instructions(self) -> None:
 
-        match ins.operation:
+        match self.ci.op:
             case Operation.TAX:
                 self.x = self.a
                 self._update_flags(self.x)
@@ -182,10 +195,10 @@ class CPU:
                 self.y = self.y - 1
                 self._update_flags(self.y)
             case _:
-                raise RuntimeError(f"Operation: {ins.operation} is not a valid register operation")
+                raise RuntimeError(f"Operation: {self.ci.op} is not a valid register operation")
 
-    def _do_stack_instructions(self, ins: Instruction) -> None:
-        match ins.operation:
+    def _do_stack_instructions(self) -> None:
+        match self.ci.op:
             case Operation.TXS:
                 self.s = self.x
             case Operation.TSX:
@@ -207,10 +220,10 @@ class CPU:
                 self.s += 1
                 self.p._set_flags(self.memory[0x100 + self.s])
             case _:
-                raise RuntimeError(f"Operation: {ins.operation} is not a valid stack operation")
+                raise RuntimeError(f"Operation: {self.ci.op} is not a valid stack operation")
 
-    def _do_status_register_instructions(self, ins: Instruction) -> None:
-        match ins.operation:
+    def _do_status_register_instructions(self) -> None:
+        match self.ci.op:
             case Operation.CLC:
                 self.p.carry = False
             case Operation.CLI:
@@ -226,14 +239,14 @@ class CPU:
             case Operation.SED:
                 self.p.decimal = True
             case _:
-                raise RuntimeError(f"Operation: {ins.operation} is not a valid status register operation")
+                raise RuntimeError(f"Operation: {self.ci.op} is not a valid status register operation")
 
-    def _do_arithmetic_instructions(self, ins: Instruction) -> None:
+    def _do_arithmetic_instructions(self) -> None:
         decimal_correction_low = 0x6
         decimal_correction_high = 0x60
 
-        operand = self._fetch_operand(ins)
-        operand = operand if ins.operation == Operation.ADC else (~operand & 0xFF)
+        assert self.ci.operand is not None
+        operand = self.ci.operand if self.ci.op == Operation.ADC else (~self.ci.operand & 0xFF)
 
         # Save this here since we might overwrite this during the binary phase,
         # but we need this for the decimal adjust phase.
@@ -266,29 +279,30 @@ class CPU:
             ol = operand & 0xF
 
             rl = al + ol + int(orig_carry)
-            if ins.operation == Operation.ADC and rl > 0x9:
+            if self.ci.op == Operation.ADC and rl > 0x9:
                 result += decimal_correction_low
-            if ins.operation == Operation.SBC and rl < 0x10:  # Burrow check
+            if self.ci.op == Operation.SBC and rl < 0x10:  # Burrow check
                 result -= decimal_correction_low
 
-            if ins.operation == Operation.ADC and result > 0x99:
+            if self.ci.op == Operation.ADC and result > 0x99:
                 result += decimal_correction_high
-            if ins.operation == Operation.SBC and result < 0x100:
+            if self.ci.op == Operation.SBC and result < 0x100:
                 result -= decimal_correction_high
 
             # Set decimal carry for ADC (after decimal correction)
             # For SBC the correct carry is implicitly the binary carry that we set before so we don't do anything
             # for that in the decimal adjustment code.
-            if ins.operation == Operation.ADC:
+            if self.ci.op == Operation.ADC:
                 self.p.carry = result > 0x99
 
         self.a = result
 
-    def _do_load_store_instructions(self, ins: Instruction) -> None:
-        if ins.operation in (Operation.LDA, Operation.LDX, Operation.LDY):
-            operand = self._fetch_operand(ins)
+    def _do_load_store_instructions(self) -> None:
+        if self.ci.op in (Operation.LDA, Operation.LDX, Operation.LDY):
+            operand = self.ci.operand
+            assert operand is not None
 
-            match ins.operation:
+            match self.ci.op:
                 case Operation.LDA:
                     self.a = operand
                     self._update_flags(self.a)
@@ -299,9 +313,9 @@ class CPU:
                     self.y = operand
                     self._update_flags(self.y)
         else:
-            address = self._compute_address(ins)
+            address = self._compute_address()
 
-            match ins.operation:
+            match self.ci.op:
                 case Operation.STA:
                     self.memory[address] = self.a
                 case Operation.STX:
@@ -309,24 +323,25 @@ class CPU:
                 case Operation.STY:
                     self.memory[address] = self.y
                 case _:
-                    raise RuntimeError(f"Operation: {ins.operation} is not a valid load/store operation")
+                    raise RuntimeError(f"Operation: {self.ci.op} is not a valid load/store operation")
 
-    def _do_mem_inc_dec_instructions(self, ins: Instruction) -> None:
-        address = self._compute_address(ins)
+    def _do_mem_inc_dec_instructions(self) -> None:
+        address = self._compute_address()
 
-        if ins.operation == Operation.INC:
+        if self.ci.op == Operation.INC:
             self.memory[address] = (self.memory[address] + 1) & 0xFF
             self._update_flags(self.memory[address])
-        elif ins.operation == Operation.DEC:
+        elif self.ci.op == Operation.DEC:
             self.memory[address] = (self.memory[address] - 1) & 0xFF
             self._update_flags(self.memory[address])
         else:
-            raise RuntimeError(f"Operation: {ins.operation} is not a valid inc/dec operation")
+            raise RuntimeError(f"Operation: {self.ci.op} is not a valid inc/dec operation")
 
-    def _do_compare_instructions(self, ins: Instruction) -> None:
-        operand = self._fetch_operand(ins)
+    def _do_compare_instructions(self) -> None:
+        operand = self.ci.operand
+        assert operand is not None
 
-        match ins.operation:
+        match self.ci.op:
             case Operation.CMP:
                 register = self.a
             case Operation.CPX:
@@ -334,7 +349,7 @@ class CPU:
             case Operation.CPY:
                 register = self.y
             case _:
-                raise RuntimeError(f"Operation: {ins.operation} is not a valid compare operation")
+                raise RuntimeError(f"Operation: {self.ci.op} is not a valid compare operation")
 
         # This is emulating the implicit SBC for comparison instructions. 1's complement the operand
         # (flip the bits) and mask off the high bits to emulate 8 bit math. then add with "carry" set.
@@ -346,10 +361,11 @@ class CPU:
 
         self._compare_update_flags(result)
 
-    def _do_bit_shift_instructions(self, ins: Instruction) -> None:
-        operand = self.a if ins.mode == AddressMode.Implicit else self._fetch_operand(ins)
+    def _do_bit_shift_instructions(self) -> None:
+        operand = self.a if self.ci.mode == AddressMode.Implicit else self.ci.operand
+        assert operand is not None
 
-        match ins.operation:
+        match self.ci.op:
             case Operation.ASL:
                 operand <<= 1
                 self.p.carry = bool(operand & 0x100)
@@ -378,34 +394,37 @@ class CPU:
                 self.p.negative = self._is_8bit_negative(operand)
                 self.p.zero = operand == 0
             case _:
-                raise RuntimeError(f"Operation: {ins.operation} is not a valid bit shift operation")
+                raise RuntimeError(f"Operation: {self.ci.op} is not a valid bit shift operation")
 
-        if ins.mode == AddressMode.Implicit:
+        if self.ci.mode == AddressMode.Implicit:
             self.a = operand
         else:
-            address = self._compute_address(ins)
+            address = self._compute_address()
             self.memory[address] = operand & 0xFF
 
-    def _do_bitwise_instructions(self, ins: Instruction) -> None:
-        operand = self._fetch_operand(ins)
+    def _do_bitwise_instructions(self) -> None:
+        assert self.ci.operand is not None
 
-        match ins.operation:
+        match self.ci.op:
             case Operation.AND:
-                self.a &= operand
+                self.a &= self.ci.operand
             case Operation.ORA:
-                self.a |= operand
+                self.a |= self.ci.operand
             case Operation.EOR:
-                self.a ^= operand
+                self.a ^= self.ci.operand
             case _:
-                raise RuntimeError(f"Operation: {ins.operation} is not a valid bitwise operation")
+                raise RuntimeError(f"Operation: {self.ci.op} is not a valid bitwise operation")
 
         self._update_flags(self.a)
 
-    def _do_bit_instruction(self, ins: Instruction) -> None:
-        if ins.operation != Operation.BIT:
-            raise RuntimeError(f"Instruction {ins} is not a BIT instruction")
+    def _do_bit_instruction(self) -> None:
+        if self.ci.op != Operation.BIT:
+            raise RuntimeError(f"Instruction {self.ci} is not a BIT instruction")
 
-        operand = self._fetch_operand(ins)
+        if self.ci.operand is None:
+            raise DecodingError(f"Instruction ({self.ci}) at address ({self.pc:04X}) is missing it's operand")
+
+        operand = self.ci.operand
 
         result = self.a & operand
 
@@ -413,11 +432,13 @@ class CPU:
         self.p.negative = self._is_8bit_negative(operand)
         self.p.overflow = bool(operand & 0x40)  # copy bit 6 as per documentation
 
-    def _do_branch_instructions(self, ins: Instruction) -> None:
-        operand = self._fetch_operand(ins)
+    def _do_branch_instructions(self) -> None:
+        if self.ci.operand is None:
+            raise DecodingError(f"Branch instruction ({self.ci}) at address {self.pc:04X} is missing it's jump target")
+        operand = self.ci.operand
         operand = self._sign_extend_16_bit(operand)
 
-        match ins.operation:
+        match self.ci.op:
             case Operation.BCC:
                 if not self.p.carry:
                     self.pc += operand
@@ -443,16 +464,11 @@ class CPU:
                 if self.p.overflow:
                     self.pc += operand
             case _:
-                raise RuntimeError(f"Operation: {ins.operation} is not a branch operation")
+                raise RuntimeError(f"Operation: {self.ci.op} is not a branch operation")
 
-    def _do_jump_instructions(self, ins: Instruction) -> None:
-        if ins.operation not in (Operation.JMP, Operation.JSR):
-            raise RuntimeError(f"Operation: {ins.operation} is not a jump operation")
-
-        # Usually self._fetch_operand() would check for this but here
-        # we can pass in ins.operand directly which could be None
-        if not ins.operand:
-            raise RuntimeError(f"Instruction {ins} doesn't have an operand, jump instructions require it")
+    def _do_jump_instructions(self) -> None:
+        if self.ci.op not in (Operation.JMP, Operation.JSR):
+            raise RuntimeError(f"Operation: {self.ci.op} is not a jump operation")
 
         # Special case addressing mode handling since they work different for jump instructions. We don't want to
         # (fully) dereference the operands. for absolute mode, use it as is (like it's immediate mode).
@@ -460,21 +476,24 @@ class CPU:
         # So one less level of indirection then usual.
         #
         # We also need to implement the infamous page crossing bug for indirect mode
-        if ins.mode not in (AddressMode.Absolute, AddressMode.Indirect):
-            raise RuntimeError(f"Invalid addressing mode for instruction {ins}")
+        if self.ci.mode not in (AddressMode.Absolute, AddressMode.Indirect):
+            raise RuntimeError(f"Invalid addressing mode for instruction {self.ci}")
 
-        if ins.mode == AddressMode.Absolute:
-            operand = ins.operand
+        assert self.ci.operand_field is not None
+
+        if self.ci.mode == AddressMode.Absolute:
+            operand = self.ci.operand_field
         else:
-            if (ins.operand & 0xFF) == 0xFF:
+            assert self.ci.operand_field is not None
+            if (self.ci.operand_field & 0xFF) == 0xFF:
                 # Implement the page crossing "feature" in indirect mode
-                low_byte = self.memory[ins.operand]
-                high_byte = self.memory[ins.operand & 0xFF00]
+                low_byte = self.memory[self.ci.operand_field]
+                high_byte = self.memory[self.ci.operand_field & 0xFF00]
                 operand = (high_byte << 8) | low_byte
             else:
-                operand = self._fetch_16bit(ins.operand)
+                operand = self._fetch_16bit(self.ci.operand_field)
 
-        if ins.operation == Operation.JSR:
+        if self.ci.op == Operation.JSR:
             # self.pc - 1 isn't a bug! JSR stores the address *before* the next instruction
             # (the address of it's operand's high byte) and RTS then *increments* the pulled address
             # to correct it and returns to the next instruction.
@@ -484,7 +503,7 @@ class CPU:
 
         self.pc = operand
 
-    def _do_rts_instruction(self, ins: Instruction) -> None:
+    def _do_rts_instruction(self) -> None:
         low_byte = self.memory[0x100 + self.s + 1]
         high_byte = self.memory[0x100 + self.s + 2]
         self.s += 2
@@ -493,7 +512,7 @@ class CPU:
         # the next address to the stack.
         self.pc = ((high_byte << 8) | low_byte) + 1
 
-    def _do_brk_instruction(self, ins: Instruction) -> None:
+    def _do_brk_instruction(self) -> None:
         """
         Implement the BRK instruction.
 
@@ -521,7 +540,7 @@ class CPU:
         irq_vector_high = self.memory[0xFFFF]
         self.pc = (irq_vector_high << 8) | irq_vector_low
 
-    def _do_rti_instruction(self, ins: Instruction) -> None:
+    def _do_rti_instruction(self) -> None:
         self.p._set_flags(self.memory[0x100 | self.s + 1])
         low_byte = self.memory[0x100 | self.s + 2]
         high_byte = self.memory[0x100 | self.s + 3]
@@ -583,9 +602,12 @@ class CPU:
         self._init_s = s
         self._init_p = self._StatusRegister()
         self.memory = memory
+        # These are dummy values that are overridden on the first actual instruction decode.
+        # They aren't meant to be meaningful and are only here so we can have a Decoded_instruction attribute to mutate.
+        self.ci = Decoded_instruction(op=Operation.ADC, mode=AddressMode.Immediate, operand_field=0, operand=0, size=0)
         self.reset()
 
-        self._instruction_dispatch: list[Callable[[Instruction], None]] = [lambda ins: None] * len(Operation)
+        self._instruction_dispatch: list[Callable[[], None]] = [lambda: None] * len(Operation)
         self._instruction_dispatch[Operation.ADC.value] = self._do_arithmetic_instructions
         self._instruction_dispatch[Operation.AND.value] = self._do_bitwise_instructions
         self._instruction_dispatch[Operation.ASL.value] = self._do_bit_shift_instructions
@@ -622,7 +644,7 @@ class CPU:
         self._instruction_dispatch[Operation.LDX.value] = self._do_load_store_instructions
         self._instruction_dispatch[Operation.LDY.value] = self._do_load_store_instructions
         self._instruction_dispatch[Operation.LSR.value] = self._do_bit_shift_instructions
-        self._instruction_dispatch[Operation.NOP.value] = lambda _: None
+        self._instruction_dispatch[Operation.NOP.value] = lambda: None
         self._instruction_dispatch[Operation.ORA.value] = self._do_bitwise_instructions
         self._instruction_dispatch[Operation.PHA.value] = self._do_stack_instructions
         self._instruction_dispatch[Operation.PHP.value] = self._do_stack_instructions
@@ -732,18 +754,49 @@ class CPU:
         """Set S register, ensures the register is bound to an 8 bit range with wrap around semantics."""
         self._s = value & 0xFF  # Ensure 8 bit wraparound
 
-    def execute_instruction(self, ins: Instruction) -> None:
+    def execute_instruction(self) -> None:
         """Execute a single instruction. Update registers and memory as per ISA requirements."""
-        self.pc += ins.size  # Very important we do this before dispatch to make branches, jumps & JSR work properly
+        self.pc += self.ci.size  # Very important we do this before dispatch to make branches, jumps & JSR work properly
         try:
-            self._instruction_dispatch[ins.operation.value](ins)
+            self._instruction_dispatch[self.ci.op.value]()
         except KeyError as e:
-            raise RuntimeError(f"Operation: <{ins.operation}> is not implemented.") from e
+            raise RuntimeError(f"Operation: <{self.ci.op}> is not implemented.") from e
 
-    def _decode(self) -> Instruction:
+    def _decode(self) -> None:
         # Always feed Instruction.decode the next 3 bytes since that is the maximum 6502 instruction size.
         # The execute_instruction method will only advance the program counter by the actual decoded instruction size.
-        return Instruction.decode(self.memory[self.pc : self.pc + 3])
+        # return Instruction.decode(self.memory[self.pc : self.pc + 3])
+        try:
+            isa_entry = isa[self.memory[self.pc]]
+        except KeyError as err:
+            raise RuntimeError(f"Unknown opcode ({self.memory[self.pc]:02X}) at address ({self.pc:04X})") from err
+
+        self.ci.op = isa_entry.operation
+        self.ci.mode = isa_entry.mode
+        self.ci.size = isa_entry.size
+
+        match self.ci.mode:
+            case AddressMode.Implicit:
+                self.ci.operand_field = None
+                self.ci.operand = None
+            case AddressMode.Absolute | AddressMode.AbsoluteX | AddressMode.AbsoluteY | AddressMode.Indirect:
+                self.ci.operand_field = (self.memory[self.pc + 2] << 8) | self.memory[self.pc + 1]
+            case _:
+                self.ci.operand_field = self.memory[self.pc + 1]
+
+        if self.ci.mode != AddressMode.Implicit:
+            self._fetch_operand()
+
+    def execute_instruction_obj(self, ins: Instruction) -> None:
+        self.ci.op = ins.operation
+        self.ci.mode = ins.mode
+        self.ci.size = ins.size
+        self.ci.operand_field = ins.operand
+
+        if self.ci.mode != AddressMode.Implicit:
+            self._fetch_operand()
+
+        self.execute_instruction()
 
     def load(self, base: int, source: bytes | BufferedIOBase) -> None:
         """Load data into memory."""
@@ -763,5 +816,5 @@ class CPU:
 
     def step(self) -> None:
         """Execute one instruction from the current PC location and advance the PC to the next instruction."""
-        ins = self._decode()
-        self.execute_instruction(ins)
+        self._decode()
+        self.execute_instruction()
