@@ -31,7 +31,7 @@ class CPUTrap(Exception):
         self.cpu = cpu
 
 
-@dataclass
+@dataclass(slots=True)
 class Decoded_instruction:
     op: Operation
     mode: AddressMode
@@ -780,9 +780,9 @@ class CPU:
                 self.ci.operand_field = None
                 self.ci.operand = None
             case AddressMode.Absolute | AddressMode.AbsoluteX | AddressMode.AbsoluteY | AddressMode.Indirect:
-                self.ci.operand_field = (self.memory[self.pc + 2] << 8) | self.memory[self.pc + 1]
+                self.ci.operand_field = (self.memory[(self.pc + 2) & 0xFFFF] << 8) | self.memory[(self.pc + 1) & 0xFFFF]
             case _:
-                self.ci.operand_field = self.memory[self.pc + 1]
+                self.ci.operand_field = self.memory[(self.pc + 1) & 0xFFFF]
 
         if self.ci.mode != AddressMode.Implicit:
             self._fetch_operand()
