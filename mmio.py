@@ -35,7 +35,7 @@ class Device(MemorySegment):
     """Abstract base class interface for io devices."""
 
     def __init__(self, base_address: int, size: int) -> None:
-        """Initilize address address range and internal state."""
+        """Initialize address address range and internal state."""
         super().__init__(base_address, size)
 
         self.registers: dict[int, Register] = {}
