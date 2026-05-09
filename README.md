@@ -25,11 +25,11 @@ A simple MOS 6502 CPU emulator written in Python.
 - [x] Decimal mode (BCD arithmetic)
 - [x] Add test suite
 - [x] Basic CLI or debugging interface
-- [ ] Interactive TUI
+- [x] Interactive TUI
 
 ## **Long-term goals:**
 
-- Multiple interfaces, TUI & GUI.
+- A GUI.
 - Multiple emulation targets (Apple II, Commodore 64, NES,...).
 
 ## **Usage:**
