@@ -56,11 +56,8 @@ class UI(App):
         yield Horizontal(self._runtime.console, self._mempry_viewer)
         yield self._status_bar_widget
 
-    def _short_tick(self) -> None:
-        """Timer "tick", execute the runtime for a bounded limit of instructions and flush the console."""
-        self._runtime.run_for(1000)
-
     def _tick(self) -> None:
+        self._runtime.run_for(16700)
         self._runtime.console.flush()
         self._registers_widget.update(
             f"a={self._runtime.cpu.a:02X}, x={self._runtime.cpu.x:02X}, y={self._runtime.cpu.y:02X}\nsp={self._runtime.cpu.s:02X}, pc={self._runtime.cpu.pc:04X}"
@@ -73,11 +70,9 @@ class UI(App):
 
     def on_mount(self) -> None:
         """Standard textual call back, start the runtime timer here."""
-        self.set_interval(0.001, self._short_tick, name="short_tick", pause=False)
         self.set_interval(0.0167, self._tick, name="tick", pause=False)
         self.set_interval(1, self._long_tick, name="long_tick", pause=False)
 
-        self._short_tick()
         self._tick()
         self._long_tick()
 
