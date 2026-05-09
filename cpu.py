@@ -40,7 +40,7 @@ class Decoded_instruction:
     operand: int | None = None  # Actual input data for the current operation
 
     def __str__(self) -> str:
-        return f"<{self.op}, {self.mode}, {self.operand_field}, {self.operand}>"
+        return f"<{self.op}, {self.mode}, {self.operand_field}, {self.operand}, {self.size}>"
 
 
 class CPU:
