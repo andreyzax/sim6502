@@ -10,7 +10,6 @@ from argparse import ArgumentParser
 import apple_one
 import config
 import headless
-from apple_one.system import TerminalRuntime, TuiRuntime
 
 
 def process_arguments() -> None:
