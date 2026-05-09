@@ -600,6 +600,7 @@ class CPU:
         self._pc = self._init_pc
         self._s = self._init_s
         self.p = copy.copy(self._init_p)
+        self.cycles = 0
 
     def __init__(self, memory: MemoryMap, pc: int = 0, s: int = 0xFF):
         """Initialize the cpu state."""
@@ -808,8 +809,12 @@ class CPU:
         if self.ci.mode != AddressMode.Implicit:
             self._fetch_operand()
 
-    def execute_instruction_obj(self, ins: Instruction) -> None:
-        """Execute an abstract decoded Instruction object."""
+    def execute_instruction_obj(self, ins: Instruction) -> int:
+        """
+        Execute an abstract decoded Instruction object.
+
+        Returns the instructions cycle count.
+        """
         self.ci.op = ins.operation
         self.ci.mode = ins.mode
         self.ci.size = ins.size
@@ -818,7 +823,9 @@ class CPU:
         if self.ci.mode != AddressMode.Implicit:
             self._fetch_operand()
 
-        self.execute_instruction()
+        self.ci.cycles = isa[ins.opcode].base_cycles
+
+        return self.execute_instruction()
 
     def load(self, base: int, source: bytes | BufferedIOBase) -> None:
         """Load data into memory."""
@@ -843,4 +850,6 @@ class CPU:
         Return instruction cycle time.
         """
         self._decode()
-        return self.execute_instruction()
+        cycles = self.execute_instruction()
+        self.cycles += cycles
+        return cycles

@@ -76,8 +76,12 @@ class Keyboard(Device):
         self.on_reset = on_reset
         self.backend = backend
 
-    def poll_host(self) -> None:
-        """Poll for input from the implementation backend."""
+    def tick(self, cycles: int) -> None:
+        """
+        Poll for input from the implementation backend.
+
+        For this simple stateless device we ignore the `cycles` argument.
+        """
         if self.backend.kb_input_ready():
             ch = ord(self.backend.get_char().upper())
             if ch == KEY_LF:
@@ -172,8 +176,8 @@ class Video(Device):
         self.backend = backend
         self.registers = {DSP: self.DSP(self.backend.put_char), DSPCR: self.DSPCR()}
 
-    def poll_host(self) -> None:
-        """Dummy stub for output only device."""
+    def tick(self, cycles: int) -> None:
+        """Dummy stub for output only stateless device."""
         pass
 
     def __getitem__(self, address: int) -> int:

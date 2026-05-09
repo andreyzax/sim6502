@@ -59,26 +59,32 @@ class AppleOne(System):
         """
         counter = itertools.count()
         runtime = 0
-        cycles = 0
+        run_cycles = 0
+        tick_cycles = 0
+        ins_cycles = 0
         try:
             for i in counter:
                 if config.enable_runtime_perf_metrics:
                     start = time.perf_counter_ns()
 
+                ins_cycles = self.step()
+                tick_cycles += ins_cycles
                 if i % 10000 == 0:
-                    cycles += self.step(poll_hardware=True)
-                else:
-                    cycles += self.step()
+                    for device in self.memory.hardware_map:
+                        device.tick(tick_cycles)
+                    tick_cycles = 0
 
                 if config.enable_runtime_perf_metrics:
                     runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable ]
+                    run_cycles += ins_cycles
+
         except KeyboardInterrupt:
             if config.enable_runtime_perf_metrics:
                 instructions = next(counter)
                 ips = round(instructions / (runtime / 10**9))
                 avg_ins_time = runtime / instructions / 1000  # Show in microseconds
 
-                return Metrics(runtime=runtime, instructions=instructions, ips=ips, cycles=cycles, avg_ins_time=avg_ins_time)
+                return Metrics(runtime=runtime, instructions=instructions, ips=ips, cycles=run_cycles, avg_ins_time=avg_ins_time)
             else:
                 return None
 
@@ -90,27 +96,32 @@ class AppleOne(System):
         """
         i = 0
         runtime = 0
-        cycles = 0
+        run_cycles = 0
+        tick_cycles = 0
+        ins_cycles = 0
         for i in range(0, upto):
             if config.enable_runtime_perf_metrics:
                 start = time.perf_counter_ns()
 
-            if i % 1000 == 0:
-                cycles += self.step(poll_hardware=True)
-            else:
-                cycles += self.step()
+            ins_cycles = self.step()
+            tick_cycles += ins_cycles
+            if i % 10000 == 0:
+                for device in self.memory.hardware_map:
+                    device.tick(tick_cycles)
+                tick_cycles = 0
 
             if config.enable_runtime_perf_metrics:
                 runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable
+                run_cycles += ins_cycles
 
         if config.enable_runtime_perf_metrics:
             if i == 0:
-                return Metrics(runtime=0, instructions=0, ips=0, cycles=cycles, avg_ins_time=0)
+                return Metrics(runtime=0, instructions=0, ips=0, cycles=0, avg_ins_time=0)
 
             i += 1  # turn count into amount
             ips = round(i / (runtime / 10**9))
             avg_ins_time = runtime / i / 1000  # Show in microseconds
-            return Metrics(runtime=runtime, instructions=i, ips=ips, cycles=cycles, avg_ins_time=avg_ins_time)
+            return Metrics(runtime=runtime, instructions=i, ips=ips, cycles=run_cycles, avg_ins_time=avg_ins_time)
         else:
             return None
 

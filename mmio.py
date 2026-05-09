@@ -41,11 +41,11 @@ class Device(MemorySegment):
         self.registers: dict[int, Register] = {}
 
     @abstractmethod
-    def poll_host(self) -> None:
+    def tick(self, cycles: int) -> None:
         """
-        For input devices, this polls the host for new input.
+        Advanced device state machine by `cycles` ticks.
 
-        This method returns no value. It updates the device's internal state
-        with the new data and optionally raises an interrupt for the CPU to service the input.
+        This method returns no value. It updates the device's internal state.
+        and optionally raises an interrupt for the CPU to service the input.
         """
         ...

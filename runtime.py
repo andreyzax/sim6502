@@ -98,9 +98,9 @@ class System(ABC):
     """
 
     @abstractmethod
-    def step(self, poll_hardware: bool = False) -> int:
+    def step(self) -> int:
         """
-        Execute one instruction and optionally poll the hardware.
+        Execute one instruction.
 
         Return the instruction cycle count.
         """
@@ -134,9 +134,9 @@ class Runtime(ABC):
     """
 
     @abstractmethod
-    def step(self, poll_hardware: bool = False) -> int:
+    def step(self) -> int:
         """
-        Execute one instruction and optionally poll the hardware.
+        Execute one instruction.
 
         Returns instruction cycle count.
         """
