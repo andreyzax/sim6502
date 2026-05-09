@@ -3,6 +3,7 @@ This module implements the 6502 cpu and other program execution logic.
 
 Classes:
     CPUTrap - Exception used for cpu trap conditions
+    Decoded_instruction - Simple data class to store the current decoded instruction
     CPU - Model of the 6502 cpu
 
 Arithmetic & integer representation note:
@@ -33,6 +34,12 @@ class CPUTrap(Exception):
 
 @dataclass(slots=True)
 class Decoded_instruction:
+    """
+    Store the current executing instruction.
+
+    Used for instruction dispatch and operand storage.
+    """
+
     op: Operation
     mode: AddressMode
     size: int
@@ -788,6 +795,7 @@ class CPU:
             self._fetch_operand()
 
     def execute_instruction_obj(self, ins: Instruction) -> None:
+        """Execute an abstract decoded Instruction object."""
         self.ci.op = ins.operation
         self.ci.mode = ins.mode
         self.ci.size = ins.size
