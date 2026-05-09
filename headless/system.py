@@ -44,9 +44,13 @@ class Headless(System):
         # self.cpu.pc = self._memory[0xFFFD] << 8 | self._memory[0xFFFC]
         self._cpu.pc = 0x400
 
-    def step(self, poll_hardware: bool = False) -> None:
-        """Execute a single instruction."""
-        self._cpu.step()
+    def step(self, poll_hardware: bool = False) -> int:
+        """
+        Execute a single instruction.
+
+        Return instruction cycle count.
+        """
+        return self._cpu.step()
 
     def run(self) -> Metrics | None:
         """
@@ -56,12 +60,13 @@ class Headless(System):
         """
         counter = itertools.count()
         runtime = 0
+        cycles = 0
         try:
             for _ in counter:
                 if config.enable_runtime_perf_metrics:
                     start = time.perf_counter_ns()
 
-                self.step()
+                cycles += self.step()
 
                 if config.enable_runtime_perf_metrics:
                     runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable ]
@@ -69,9 +74,10 @@ class Headless(System):
             if config.enable_runtime_perf_metrics:
                 instructions = next(counter)
                 ips = round(instructions / (runtime / 10**9))
+                cps = round(cycles / (runtime / 10**9))
                 avg_ins_time = runtime / instructions / 1000  # Show in microseconds
 
-                return Metrics(runtime=runtime, instructions=instructions, ips=ips, avg_ins_time=avg_ins_time)
+                return Metrics(runtime=runtime, instructions=instructions, ips=ips, cycles=cycles, avg_ins_time=avg_ins_time)
             else:
                 return None
 
@@ -83,23 +89,24 @@ class Headless(System):
         """
         i = 0
         runtime = 0
+        cycles = 0
         for i in range(0, upto):  # noqa: B007 - i is used outside the loop body.
             if config.enable_runtime_perf_metrics:
                 start = time.perf_counter_ns()
 
-            self.step()
+            cycles += self.step()
 
             if config.enable_runtime_perf_metrics:
                 runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable
 
         if config.enable_runtime_perf_metrics:
             if i == 0:
-                return Metrics(runtime=0, instructions=0, ips=0, avg_ins_time=0)
+                return Metrics(runtime=0, instructions=0, ips=0, cycles=0, avg_ins_time=0)
 
             i += 1  # turn count into amount
             ips = round(i / (runtime / 10**9))
             avg_ins_time = runtime / i / 1000  # Show in microseconds
-            return Metrics(runtime=runtime, instructions=i, ips=ips, avg_ins_time=avg_ins_time)
+            return Metrics(runtime=runtime, instructions=i, ips=ips, cycles=cycles, avg_ins_time=avg_ins_time)
         else:
             return None
 
@@ -220,10 +227,14 @@ class TuiRuntime(Runtime):
         if self._metrics:
             return self._metrics
         else:
-            return Metrics(0, 0, 0, 0.0)
+            return Metrics(0, 0, 0, 0, 0.0)
 
-    def step(self, poll_hardware: bool = False) -> None:
-        """Execute one instruction, optionally polling hardware."""
+    def step(self, poll_hardware: bool = False) -> int:
+        """
+        Execute one instruction, optionally polling hardware.
+
+        Return instruction cycle count.
+        """
         return self.system.step(poll_hardware)
 
     def run_for(self, upto: int) -> Metrics | None:

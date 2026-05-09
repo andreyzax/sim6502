@@ -45,11 +45,11 @@ class AppleOne(System):
             with open(config.program[1], "rb") as f:
                 self.cpu.load(config.program[0], f)
 
-    def step(self, poll_hardware: bool = False) -> None:
+    def step(self, poll_hardware: bool = False) -> int:
         """Execute a single instruction, optionally poll the hardware for pending input."""
         if poll_hardware:
             self._memory.poll_hardware()
-        self._cpu.step()
+        return self._cpu.step()
 
     def run(self) -> Metrics | None:
         """
@@ -59,15 +59,16 @@ class AppleOne(System):
         """
         counter = itertools.count()
         runtime = 0
+        cycles = 0
         try:
             for i in counter:
                 if config.enable_runtime_perf_metrics:
                     start = time.perf_counter_ns()
 
                 if i % 10000 == 0:
-                    self.step(poll_hardware=True)
+                    cycles += self.step(poll_hardware=True)
                 else:
-                    self.step()
+                    cycles += self.step()
 
                 if config.enable_runtime_perf_metrics:
                     runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable ]
@@ -77,7 +78,7 @@ class AppleOne(System):
                 ips = round(instructions / (runtime / 10**9))
                 avg_ins_time = runtime / instructions / 1000  # Show in microseconds
 
-                return Metrics(runtime=runtime, instructions=instructions, ips=ips, avg_ins_time=avg_ins_time)
+                return Metrics(runtime=runtime, instructions=instructions, ips=ips, cycles=cycles, avg_ins_time=avg_ins_time)
             else:
                 return None
 
@@ -89,26 +90,27 @@ class AppleOne(System):
         """
         i = 0
         runtime = 0
+        cycles = 0
         for i in range(0, upto):
             if config.enable_runtime_perf_metrics:
                 start = time.perf_counter_ns()
 
             if i % 1000 == 0:
-                self.step(poll_hardware=True)
+                cycles += self.step(poll_hardware=True)
             else:
-                self.step()
+                cycles += self.step()
 
             if config.enable_runtime_perf_metrics:
                 runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable
 
         if config.enable_runtime_perf_metrics:
             if i == 0:
-                return Metrics(runtime=0, instructions=0, ips=0, avg_ins_time=0)
+                return Metrics(runtime=0, instructions=0, ips=0, cycles=cycles, avg_ins_time=0)
 
             i += 1  # turn count into amount
             ips = round(i / (runtime / 10**9))
             avg_ins_time = runtime / i / 1000  # Show in microseconds
-            return Metrics(runtime=runtime, instructions=i, ips=ips, avg_ins_time=avg_ins_time)
+            return Metrics(runtime=runtime, instructions=i, ips=ips, cycles=cycles, avg_ins_time=avg_ins_time)
         else:
             return None
 
@@ -159,8 +161,12 @@ class TerminalRuntime(Runtime):
         """Get the memory."""
         return self.system.memory
 
-    def step(self, poll_hardware: bool = False) -> None:
-        """Execute one instruction, optionally polling hardware."""
+    def step(self, poll_hardware: bool = False) -> int:
+        """
+        Execute one instruction, optionally polling hardware.
+
+        Return the instruction cycle time.
+        """
         return self.system.step(poll_hardware)
 
     def run_for(self, upto: int) -> Metrics | None:
@@ -216,10 +222,14 @@ class TuiRuntime(Runtime):
         if self._metrics:
             return self._metrics
         else:
-            return Metrics(0, 0, 0, 0.0)
+            return Metrics(0, 0, 0, 0, 0.0)
 
-    def step(self, poll_hardware: bool = False) -> None:
-        """Execute one instruction, optionally polling hardware."""
+    def step(self, poll_hardware: bool = False) -> int:
+        """
+        Execute one instruction, optionally polling hardware.
+
+        Return the instruction cycle time.
+        """
         return self.system.step(poll_hardware)
 
     def run_for(self, upto: int) -> Metrics | None:

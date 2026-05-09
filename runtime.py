@@ -29,6 +29,7 @@ class Metrics:
     runtime: int
     instructions: int
     ips: int
+    cycles: int
     avg_ins_time: float  # microseconds
 
     def __add__(self, other: Self | None) -> Self:
@@ -43,18 +44,20 @@ class Metrics:
         # ...
         # accumulator = accumulator + Metrics(...)
         if other is None:
-            return type(self)(runtime=self.runtime, instructions=self.instructions, ips=self.ips, avg_ins_time=self.avg_ins_time)
+            return type(self)(runtime=self.runtime, instructions=self.instructions, ips=self.ips, cycles=self.cycles, avg_ins_time=self.avg_ins_time)
 
         if not isinstance(other, type(self)):
             return NotImplemented
 
         total_instructions = self.instructions + other.instructions
+        total_cycles = self.cycles + other.cycles
         new_ips = (self.ips * self.instructions + other.ips * other.instructions) / total_instructions
         new_avg_ins_time = (self.avg_ins_time * self.instructions + other.avg_ins_time * other.instructions) / total_instructions
         return type(self)(
             runtime=self.runtime + other.runtime,
             instructions=total_instructions,
             ips=round(new_ips),
+            cycles=total_cycles,
             avg_ins_time=new_avg_ins_time,
         )
 
@@ -66,21 +69,24 @@ class Metrics:
             return NotImplemented
 
         total_instructions = self.instructions + other.instructions
+        total_cycles = self.cycles + other.cycles
         new_ips = (self.ips * self.instructions + other.ips * other.instructions) / total_instructions
         new_avg_ins_time = (self.avg_ins_time * self.instructions + other.avg_ins_time * other.instructions) / total_instructions
 
         self.runtime += other.runtime
         self.instructions = total_instructions
         self.ips = round(new_ips)
+        self.cycles = total_cycles
         self.avg_ins_time = new_avg_ins_time
 
         return self
 
     def __str__(self) -> str:
         """Human readable representation."""
-        return (
-            f"Instructions: {self.instructions:8}, runtime: {self.runtime / 10**9:6.3f} seconds, ips: {self.ips:8,}, average instruction time: {self.avg_ins_time:2.3f}us"
-        )
+        if self.runtime == 0:
+            return "Runtime: 0 seconds, ips: 0, Cycles per second = 0, average instruction time: 0us"
+        cps = round(self.cycles / (self.runtime / 10**9))
+        return f"Runtime: {self.runtime / 10**9:6.3f} seconds, ips: {self.ips:8,}, Cycles per second = {cps:8,}, average instruction time: {self.avg_ins_time:2.3f}us"
 
 
 class System(ABC):
@@ -92,8 +98,12 @@ class System(ABC):
     """
 
     @abstractmethod
-    def step(self, poll_hardware: bool = False) -> None:
-        """Execute one instruction and optionally poll the hardware."""
+    def step(self, poll_hardware: bool = False) -> int:
+        """
+        Execute one instruction and optionally poll the hardware.
+
+        Return the instruction cycle count.
+        """
         ...
 
     @abstractmethod
@@ -124,8 +134,12 @@ class Runtime(ABC):
     """
 
     @abstractmethod
-    def step(self, poll_hardware: bool = False) -> None:
-        """Execute one instruction and optionally poll the hardware."""
+    def step(self, poll_hardware: bool = False) -> int:
+        """
+        Execute one instruction and optionally poll the hardware.
+
+        Returns instruction cycle count.
+        """
         ...
 
     @abstractmethod

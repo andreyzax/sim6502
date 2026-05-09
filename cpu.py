@@ -45,6 +45,7 @@ class Decoded_instruction:
     size: int
     operand_field: int | None = None  # Decoded operand from instruction
     operand: int | None = None  # Actual input data for the current operation
+    cycles: int = 0
 
     def __str__(self) -> str:
         return f"<{self.op}, {self.mode}, {self.operand_field}, {self.operand}, {self.size}>"
@@ -761,15 +762,27 @@ class CPU:
         """Set S register, ensures the register is bound to an 8 bit range with wrap around semantics."""
         self._s = value & 0xFF  # Ensure 8 bit wraparound
 
-    def execute_instruction(self) -> None:
-        """Execute a single instruction. Update registers and memory as per ISA requirements."""
+    def execute_instruction(self) -> int:
+        """
+        Execute a single instruction. Update registers and memory as per ISA requirements.
+
+        Return the cycle count for the instruction
+        """
         self.pc += self.ci.size  # Very important we do this before dispatch to make branches, jumps & JSR work properly
         try:
             self._instruction_dispatch[self.ci.op.value]()
         except KeyError as e:
             raise RuntimeError(f"Operation: <{self.ci.op}> is not implemented.") from e
 
+        # Don't do any runtime adjustments for now, just returned the decoded base cycles
+        return self.ci.cycles
+
     def _decode(self) -> None:
+        """
+        Decode a single instruction from bytes like object.
+
+        Ignores any data beyond the instruction.
+        """
         # Always feed Instruction.decode the next 3 bytes since that is the maximum 6502 instruction size.
         # The execute_instruction method will only advance the program counter by the actual decoded instruction size.
         # return Instruction.decode(self.memory[self.pc : self.pc + 3])
@@ -781,6 +794,7 @@ class CPU:
         self.ci.op = isa_entry.operation
         self.ci.mode = isa_entry.mode
         self.ci.size = isa_entry.size
+        self.ci.cycles = isa_entry.base_cycles
 
         match self.ci.mode:
             case AddressMode.Implicit:
@@ -822,7 +836,11 @@ class CPU:
 
         self.memory[base : base + data_size] = data
 
-    def step(self) -> None:
-        """Execute one instruction from the current PC location and advance the PC to the next instruction."""
+    def step(self) -> int:
+        """
+        Execute one instruction from the current PC location and advance the PC to the next instruction.
+
+        Return instruction cycle time.
+        """
         self._decode()
-        self.execute_instruction()
+        return self.execute_instruction()
