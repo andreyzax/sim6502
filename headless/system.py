@@ -74,7 +74,6 @@ class Headless(System):
             if config.enable_runtime_perf_metrics:
                 instructions = next(counter)
                 ips = round(instructions / (runtime / 10**9))
-                cps = round(cycles / (runtime / 10**9))
                 avg_ins_time = runtime / instructions / 1000  # Show in microseconds
 
                 return Metrics(runtime=runtime, instructions=instructions, ips=ips, cycles=cycles, avg_ins_time=avg_ins_time)
