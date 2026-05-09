@@ -7,8 +7,6 @@ Classes:
 
 """
 
-from collections import deque
-
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
 from textual.widgets import Log, Static
@@ -18,7 +16,7 @@ import headless.system as system
 
 
 class UI(App):
-    """The Apple 1 tui interface shell."""
+    """The Headless tui interface shell."""
 
     CSS_PATH = "style.tcss"
 

@@ -57,7 +57,7 @@ class Headless(System):
         counter = itertools.count()
         runtime = 0
         try:
-            for i in counter:
+            for _ in counter:
                 if config.enable_runtime_perf_metrics:
                     start = time.perf_counter_ns()
 
@@ -83,7 +83,7 @@ class Headless(System):
         """
         i = 0
         runtime = 0
-        for i in range(0, upto):
+        for i in range(0, upto):  # noqa: B007 - i is used outside the loop body.
             if config.enable_runtime_perf_metrics:
                 start = time.perf_counter_ns()
 
@@ -193,9 +193,6 @@ class TuiRuntime(Runtime):
 
     def _trap_handler(self, cpu: CPU) -> None:
         """Handle cpu traps, currently only gets triggered if `config.trap_brk` is true."""
-        # flags = ("#" if flag else " " for flag in (cpu.p.negative, cpu.p.overflow, True, True, cpu.p.decimal, cpu.p.interrupt_disable, cpu.p.zero, cpu.p.carry))
-        # flags_str = "".join(flags)
-        log = self.ui.query_one("#error-log", Log)
         self._log(f"""\nExecution stopped:
             pc=0x{cpu.pc:X}
             ins={cpu._decode()}
