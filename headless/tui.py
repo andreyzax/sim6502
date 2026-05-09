@@ -13,6 +13,7 @@ from textual.widgets import Log, Static
 
 import config
 import headless.system as system
+from tui import HelpBar
 
 
 class UI(App):
@@ -44,6 +45,7 @@ class UI(App):
 
     def compose(self) -> ComposeResult:
         """Assemble the shell."""
+        yield HelpBar()
         yield Log(id="error-log")
         yield self._status_bar_widget
 
