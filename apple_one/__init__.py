@@ -4,6 +4,6 @@ This package implements the apple 1 console.
 The keyboard and video section are both implemented
 """
 
-from .devices import Keyboard, Video
+from apple_one.system import TerminalRuntime, TuiRuntime
 
-__all__ = ["Keyboard", "Video"]
+__all__ = ["TuiRuntime", "TerminalRuntime"]
