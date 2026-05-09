@@ -44,6 +44,7 @@ class UI(App):
             self._metrics_widget = Static(id="metrics")
         self._registers_widget = Static(id="registers")
         self._flags_widget = Static(id="flags")
+        self._mempry_viewer = MemoryViewer(self._runtime.memory)
         if config.enable_runtime_perf_metrics:
             self._status_bar_widget = Horizontal(self._metrics_widget, self._registers_widget, self._flags_widget, id="status_bar")
         else:
@@ -51,7 +52,8 @@ class UI(App):
 
     def compose(self) -> ComposeResult:
         """Assemble the shell."""
-        yield self._runtime.console
+        yield HelpBar()
+        yield Horizontal(self._runtime.console, self._mempry_viewer)
         yield self._status_bar_widget
 
     def _short_tick(self) -> None:
