@@ -65,6 +65,7 @@ class UI(App):
         self._flags_widget.update(f"flags:   NV-BDIZC\n         {str(self._runtime.cpu.p)}")
 
     def _long_tick(self) -> None:
+        self._mempry_viewer.refresh()
         if config.enable_runtime_perf_metrics:
             self._metrics_widget.update(str(self._runtime.metrics))
 
