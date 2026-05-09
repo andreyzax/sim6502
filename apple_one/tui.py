@@ -11,134 +11,15 @@ Classes:
 """
 
 from collections import deque
-from typing import Callable
 
-from rich.text import Text
-from textual.app import App, ComposeResult, RenderResult
+from textual.app import App, ComposeResult
 from textual.containers import Horizontal
-from textual.events import Key
-from textual.widget import Widget
 from textual.widgets import Static
 
 import apple_one.system as system
 import config
 from apple_one.api import DisplayBackend, KeyboardBackend
-
-
-class ConsoleWidget(Widget):
-    """
-    A textual tui widget that models an Apple 1 console.
-
-    Used by the tui hardware backends and embedded inside the tui runtime shell.
-    """
-
-    can_focus = True
-
-    def __init__(self, max_lines=500, *args, **kwargs):
-        """
-        Initialize the console.
-
-        Accepts max_lines to set scrollback buffer size. Also accepts any generic
-        textual Widget arguments (id, class,...)
-        """
-        super().__init__(*args, **kwargs)
-
-        self._lines: deque[str] = deque(maxlen=max_lines)
-        self._inject_char: Callable[[str], None] | None = None
-        self._dirty = False
-        self._cursor = Text("@", style="blink")
-
-        self.border_title = "Console"
-
-    def flush(self) -> None:
-        """
-        Sync visible console content with internal buffer.
-
-        Writes to the console won't be shown on screen without calling this.
-        """
-        if self._dirty:
-            self.refresh()
-            self._dirty = False
-
-    @property
-    def inject_char(self) -> Callable[[str], None] | None:
-        """inject_char property."""
-        return self._inject_char
-
-    @inject_char.setter
-    def inject_char(self, value: Callable[[str], None]) -> None:
-        """
-        inject_char setter.
-
-        This property is a callable which accepts a one char string and is responsible
-        to pass console input to the emulated keyboard interface.
-        """
-        self._inject_char = value
-
-    def display_char(self, char: str) -> None:
-        """
-        Add a character to the console buffer, handles new line processing.
-
-        This method will not display the new output immediately, flush() must be called
-        to sync the internal buffer with the rendered text.
-        """
-        if char == "\n":
-            self._lines.append("")
-        else:
-            self._lines[-1] += char
-
-        self._dirty = True
-
-    def on_key(self, event: Key) -> None:
-        """
-        Respond to textual keyboard input events and inject them to the emulated keyboard interface.
-
-        Handles carriage return (enter key) and control character processing.
-        """
-        if self.inject_char:  # we could be called without a set self.inject_char, need to guard against that.
-            if event.is_printable:
-                assert event.character is not None
-                self.inject_char(event.character)
-            if event.name == "enter":
-                self.inject_char("\n")
-            if event.name in ("ctrl_r", "ctrl_d"):
-                assert event.character is not None
-                self.inject_char(event.character)
-        else:
-            pass  # Since we don't have a way to pass input to the emulator, we just do nothing
-
-    def render(self) -> RenderResult:
-        """
-        Render the console buffer into the widget content area.
-
-        Only renders the visible part of the buffer.
-        """
-        height = max(1, self.content_size.height)
-        nlines = len(self._lines)
-        visible = nlines - height
-        if height == 0:
-            return ""
-
-        content = "\n".join([line for line_number, line in enumerate(self._lines) if line_number >= visible])
-        return Text(content) + self._cursor
-
-    def stop(self) -> None:
-        """
-        Stops the console.
-
-        Currently this only stops the cursor blink.
-        """
-        self._cursor = Text("@", style="")
-        self.refresh()
-
-    def resume(self) -> None:
-        """
-        Resume the console.
-
-        Currently, just resumes the cursor blink.
-        """
-        self._cursor = Text("@", style="blink")
-        self.refresh()
+from tui import ConsoleWidget, HelpBar, MemoryViewer
 
 
 class UI(App):
