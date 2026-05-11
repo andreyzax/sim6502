@@ -30,7 +30,7 @@ class Headless(System):
     Assembles and wires up the system and owns the system's component objects. Exposes runtime api to control emulator execution.
     """
 
-    def __init__(self):
+    def __init__(self, start_pc: int | None):
         """Initializes the internal state of the emulator."""
         roms = (RomSegment.from_binary_file(base_address=rom[0], path=rom[1]) for rom in config.roms)
         self._memory = MemoryMap(RamSegment(0, 0x10000), *roms)
@@ -41,8 +41,8 @@ class Headless(System):
             with open(config.program[1], "rb") as f:
                 self.cpu.load(config.program[0], f)
 
-        # self.cpu.pc = self._memory[0xFFFD] << 8 | self._memory[0xFFFC]
-        self._cpu.pc = 0x400
+        if start_pc is not None:
+            self.cpu.pc = start_pc
 
     def step(self, poll_hardware: bool = False) -> int:
         """
@@ -50,7 +50,7 @@ class Headless(System):
 
         Return instruction cycle count.
         """
-        return self._cpu.step()
+        return self.cpu.step()
 
     def run(self) -> Metrics | None:
         """
@@ -186,9 +186,9 @@ class Headless(System):
 class TuiRuntime(Runtime):
     """Terminal backed runtime class."""
 
-    def __init__(self) -> None:
+    def __init__(self, start_pc: int | None) -> None:
         """Create a tui backed runtime."""
-        self.system = Headless()
+        self.system = Headless(start_pc)
         self.ui = tui.UI(self)
         self._runnable = False
         self._metrics: Metrics | None = None
