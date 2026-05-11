@@ -16,5 +16,9 @@ terminal_device = None
 backend = "terminal"
 
 roms = ((0xFF00, "bin/wozmon.bin"), (0xE000, "bin/basic.bin"))
+# roms = tuple()
 
 program = (0x280, "bin/mandelbrot-65.bin", "rb")
+# program = (0x0, "bin/6502_functional_test.bin", "rb")
+
+# start_pc = 0x400
