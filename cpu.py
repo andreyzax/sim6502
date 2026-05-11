@@ -175,6 +175,35 @@ class CPU:
             case _:
                 raise RuntimeError(f"Can't compute address for mode: {self.ci.mode}")
 
+    def _service_interrupt(self, vector: int, b_field: bool, return_address: int) -> None:
+        """
+        Interrupt handler.
+
+        Behavior is configurable. It can emulate BRK, or a hardware interrupt.
+
+        BRK can be fully emulated acting as a software interrupt and enabling native debuggers, monitors and operating systems.
+        Or it can be trapped (raise a CPUTrap exception).
+        Allowing the driver code to act as an external monitor/debugger for the system.
+        """
+        self.memory[0x100 | self.s] = return_address >> 8
+        self.memory[0x100 | (self.s - 1 & 0xFF)] = return_address & 0xFF
+
+        flags = self.p._get_flags()
+        if b_field:
+            flags |= 1 << 4
+        self.memory[0x100 | (self.s - 2 & 0xFF)] = flags
+
+        self.s -= 3
+
+        self.p.interrupt_disable = True
+
+        if config.trap_brk and b_field:
+            raise CPUTrap(cpu=self)
+
+        irq_vector_low = self.memory[vector & 0xFFFF]
+        irq_vector_high = self.memory[(vector + 1) & 0xFFFF]
+        self.pc = (irq_vector_high << 8) | irq_vector_low
+
     def _do_register_instructions(self) -> None:
 
         match self.ci.op:
@@ -521,32 +550,18 @@ class CPU:
         self.pc = ((high_byte << 8) | low_byte) + 1
 
     def _do_brk_instruction(self) -> None:
-        """
-        Implement the BRK instruction.
-
-        BRK behavior is configurable. It can emulate BRK on the real hardware.
-        Acting as a software interrupt and enabling native debuggers, monitors and operating systems, or it can raise a CPUTrap exception.
-        Allowing the driver code to act as an external monitor/debugger for the system.
-        """
         # While JSR pushes the address before the next instruction, BRK pushes
         # a return address that skips the next byte and unlike RTS the RTI instruction doesn't
         # "correct" it, returning from a BRK handler skips one byte in the instruction stream (which is why
         # many consider this a 2 byte instruction even though it's an implicit mode instruction without any operands).
-        self.memory[0x100 + self.s] = (self.pc + 1) >> 8
-        self.memory[0x100 + self.s - 1] = (self.pc + 1) & 0xFF
+        self._service_interrupt(vector=0xFFFE, b_field=True, return_address=self.pc + 1)
 
-        flags = self.p._get_flags()
-        flags |= 1 << 4  # BRK sets the "b" flag
-        self.memory[0x100 + self.s - 2] = flags
-        self.s -= 3
-        self.p.interrupt_disable = True
+    def _service_irq(self) -> None:
+        self._service_interrupt(vector=0xFFFE, b_field=False, return_address=self.pc)
 
-        if config.trap_brk:
-            raise CPUTrap(cpu=self)
-
-        irq_vector_low = self.memory[0xFFFE]
-        irq_vector_high = self.memory[0xFFFF]
-        self.pc = (irq_vector_high << 8) | irq_vector_low
+    def _service_nmi(self) -> None:
+        self._service_interrupt(vector=0xFFFA, b_field=False, return_address=self.pc)
+        self.nmi = False  # Emulate edge trigger semantics, devices will need to reset this to trigger another nmi
 
     def _do_rti_instruction(self) -> None:
         self.p._set_flags(self.memory[0x100 | self.s + 1])
@@ -600,6 +615,8 @@ class CPU:
         self._pc = self._init_pc
         self._s = self._init_s
         self.p = copy.copy(self._init_p)
+        self.irq = False
+        self.nmi = False
         self.cycles = 0
 
     def __init__(self, memory: MemoryMap, pc: int = 0, s: int = 0xFF):
@@ -614,6 +631,8 @@ class CPU:
         # These are dummy values that are overridden on the first actual instruction decode.
         # They aren't meant to be meaningful and are only here so we can have a Decoded_instruction attribute to mutate.
         self.ci = Decoded_instruction(op=Operation.ADC, mode=AddressMode.Immediate, operand_field=0, operand=0, size=0)
+        self.irq = False
+        self.nmi = False
         self.reset()
 
         self._instruction_dispatch: list[Callable[[], None]] = [lambda: None] * len(Operation)
@@ -847,9 +866,19 @@ class CPU:
         """
         Execute one instruction from the current PC location and advance the PC to the next instruction.
 
+        Also Services any pending interrupts and adjusts cycles accordingly
         Return instruction cycle time.
         """
         self._decode()
         cycles = self.execute_instruction()
+
+        if self.nmi:
+            self._service_nmi()
+            cycles += 7
+        elif self.irq and not self.p.interrupt_disable:
+            self._service_irq()
+            cycles += 7
+
         self.cycles += cycles
+
         return cycles
