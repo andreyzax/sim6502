@@ -45,7 +45,7 @@ class Headless(System):
         if config.get("start_address", None) is not None:
             self.cpu.pc = config.start_address
 
-    def step(self, poll_hardware: bool = False) -> int:
+    def step(self) -> int:
         """
         Execute a single instruction.
 
@@ -229,13 +229,13 @@ class TuiRuntime(Runtime):
         else:
             return Metrics(0, 0, 0, 0, 0.0)
 
-    def step(self, poll_hardware: bool = False) -> int:
+    def step(self) -> int:
         """
-        Execute one instruction, optionally polling hardware.
+        Execute one instruction.
 
         Return instruction cycle count.
         """
-        return self.system.step(poll_hardware)
+        return self.system.step()
 
     def run_for(self, upto: int) -> Metrics | None:
         """

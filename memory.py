@@ -374,11 +374,6 @@ class MemoryMap:
             yield self.__getitem__(address)
             address += 1
 
-    def poll_hardware(self) -> None:
-        """Poll all hardware devices for input from the host."""
-        for device in self.hardware_map:
-            device.poll_host()
-
     def dump(self) -> str:
         """Dump the contents of the memory map."""
         content: list[str] = []

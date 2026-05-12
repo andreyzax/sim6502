@@ -48,11 +48,13 @@ class AppleOne(System):
             with open(config.program.path, "rb") as f:
                 self.cpu.load(config.program.load_address, f)
 
-    def step(self, poll_hardware: bool = False) -> int:
-        """Execute a single instruction, optionally poll the hardware for pending input."""
-        if poll_hardware:
-            self._memory.poll_hardware()
-        return self._cpu.step()
+    def step(self, tick_hardware: bool = False) -> int:
+        """Execute a single instruction, optionally advance the hardware state."""
+        cycles = self._cpu.step()
+        if tick_hardware:
+            for device in self.memory.hardware_map:
+                device.tick(cycles)
+        return cycles
 
     def run(self) -> Metrics | None:
         """
@@ -70,12 +72,13 @@ class AppleOne(System):
                 if self.collect_metrics:
                     start = time.perf_counter_ns()
 
-                ins_cycles = self.step()
-                tick_cycles += ins_cycles
                 if i % 10000 == 0:
-                    for device in self.memory.hardware_map:
-                        device.tick(tick_cycles)
+                    ins_cycles = self.step(tick_hardware=True)
                     tick_cycles = 0
+                else:
+                    ins_cycles = self.step()
+
+                tick_cycles += ins_cycles
 
                 if self.collect_metrics:
                     runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable ]
@@ -106,12 +109,12 @@ class AppleOne(System):
             if self.collect_metrics:
                 start = time.perf_counter_ns()
 
-            ins_cycles = self.step()
-            tick_cycles += ins_cycles
             if i % 10000 == 0:
-                for device in self.memory.hardware_map:
-                    device.tick(tick_cycles)
+                ins_cycles = self.step(tick_hardware=True)
                 tick_cycles = 0
+            else:
+                ins_cycles = self.step()
+            tick_cycles += ins_cycles
 
             if self.collect_metrics:
                 runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable
