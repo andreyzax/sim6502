@@ -50,7 +50,7 @@ def main() -> None:
             raise RuntimeError(f"Backend ({settings.backend}) is not supported.")
     elif settings.system == "headless":
         if settings.backend == "tui":
-            runtime = headless.TuiRuntime(settings.start_address)
+            runtime = headless.TuiRuntime(settings)
         else:
             raise RuntimeError(f"Backend ({settings.backend}) is not supported.")
     else:
