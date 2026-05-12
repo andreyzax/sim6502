@@ -12,9 +12,8 @@ Classes:
 import itertools
 import time
 
+from dynaconf import Dynaconf
 from textual.widgets import Log
-
-import config
 
 # import apple_one.terminal as terminal
 import headless.tui as tui
@@ -30,19 +29,21 @@ class Headless(System):
     Assembles and wires up the system and owns the system's component objects. Exposes runtime api to control emulator execution.
     """
 
-    def __init__(self, start_pc: int | None):
+    def __init__(self, config: Dynaconf):
         """Initializes the internal state of the emulator."""
-        roms = (RomSegment.from_binary_file(base_address=rom[0], path=rom[1]) for rom in config.roms)
+        roms = (RomSegment.from_binary_file(base_address=rom.load_address, path=rom.path) for rom in config.get("roms", []))
         self._memory = MemoryMap(RamSegment(0, 0x10000), *roms)
 
-        self._cpu = CPU(memory=self._memory)
+        self._cpu = CPU(memory=self._memory, trap_brk=config.get("trap_brk", False))
 
-        if config.program is not None:
-            with open(config.program[1], "rb") as f:
-                self.cpu.load(config.program[0], f)
+        if config.get("program", None) is not None:
+            with open(config.program.path, "rb") as f:
+                self.cpu.load(config.program.load_address, f)
 
-        if start_pc is not None:
-            self.cpu.pc = start_pc
+        self.collect_metrics = config.get("metrics", False)
+
+        if config.get("start_address", None) is not None:
+            self.cpu.pc = config.start_address
 
     def step(self, poll_hardware: bool = False) -> int:
         """
@@ -63,15 +64,15 @@ class Headless(System):
         cycles = 0
         try:
             for _ in counter:
-                if config.enable_runtime_perf_metrics:
+                if self.collect_metrics:
                     start = time.perf_counter_ns()
 
                 cycles += self.step()
 
-                if config.enable_runtime_perf_metrics:
+                if self.collect_metrics:
                     runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable ]
         except KeyboardInterrupt:
-            if config.enable_runtime_perf_metrics:
+            if self.collect_metrics:
                 instructions = next(counter)
                 ips = round(instructions / (runtime / 10**9))
                 avg_ins_time = runtime / instructions / 1000  # Show in microseconds
@@ -90,15 +91,15 @@ class Headless(System):
         runtime = 0
         cycles = 0
         for i in range(0, upto):  # noqa: B007 - i is used outside the loop body.
-            if config.enable_runtime_perf_metrics:
+            if self.collect_metrics:
                 start = time.perf_counter_ns()
 
             cycles += self.step()
 
-            if config.enable_runtime_perf_metrics:
+            if self.collect_metrics:
                 runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable
 
-        if config.enable_runtime_perf_metrics:
+        if self.collect_metrics:
             if i == 0:
                 return Metrics(runtime=0, instructions=0, ips=0, cycles=0, avg_ins_time=0)
 
@@ -125,8 +126,8 @@ class Headless(System):
 #
 #    def __init__(self):
 #        """Create a terminal backed runtime."""
-#        if config.terminal_device:
-#            device = open(config.terminal_device, "r+b", buffering=0)  # noqa: SIM115
+#        if settings.tty:
+#            device = open(settings.tty, "r+b", buffering=0)  # noqa: SIM115
 #            terminal.init_backend(device)
 #        else:
 #            terminal.init_backend()
@@ -134,7 +135,7 @@ class Headless(System):
 #        self.system = Headless()
 #
 #    def _trap_handler(self, cpu: CPU) -> None:
-#        """Handle cpu traps, currently only gets triggered if `config.trap_brk` is true."""
+#        """Handle cpu traps, currently only gets triggered if `settings.trap_brk` is true."""
 #        # flags = ("#" if flag else " " for flag in (cpu.p.negative, cpu.p.overflow, True, True, cpu.p.decimal, cpu.p.interrupt_disable, cpu.p.zero, cpu.p.carry))
 #        # flags_str = "".join(flags)
 #        print(f"""\nExecution stopped:
@@ -186,9 +187,9 @@ class Headless(System):
 class TuiRuntime(Runtime):
     """Terminal backed runtime class."""
 
-    def __init__(self, start_pc: int | None) -> None:
+    def __init__(self, config: Dynaconf) -> None:
         """Create a tui backed runtime."""
-        self.system = Headless(start_pc)
+        self.system = Headless(config)
         self.ui = tui.UI(self)
         self._runnable = False
         self._metrics: Metrics | None = None
@@ -198,7 +199,7 @@ class TuiRuntime(Runtime):
         log.write(data)
 
     def _trap_handler(self, cpu: CPU) -> None:
-        """Handle cpu traps, currently only gets triggered if `config.trap_brk` is true."""
+        """Handle cpu traps, currently only gets triggered if `settings.trap_brk` is true."""
         self._log(f"""\nExecution stopped:
             pc=0x{cpu.pc:X}
             ins={cpu._decode()}

@@ -1,7 +1,6 @@
 import pytest
 
 from pytest_mock import MockerFixture
-
 from cpu import CPU, CPUTrap
 from memory import MemoryMap, RamSegment
 from assembly import Instruction, Operation, AddressMode
@@ -9,12 +8,12 @@ from assembly import Instruction, Operation, AddressMode
 
 @pytest.fixture
 def system() -> CPU:
-    return CPU(MemoryMap(RamSegment(0, 4 * 1024)))
+    return CPU(MemoryMap(RamSegment(0, 4 * 1024)), trap_brk=True)
 
 
 @pytest.fixture
 def full_mem_system() -> CPU:
-    return CPU(MemoryMap(RamSegment(0, 0x10000)))
+    return CPU(MemoryMap(RamSegment(0, 0x10000)), trap_brk=True)
 
 
 def test_nop(system: CPU):
@@ -1720,7 +1719,6 @@ def test_jump_instructions(full_mem_system: CPU):
 
 def test_brk_instruction(system: CPU, mocker: MockerFixture):
     cpu = system
-    mocker.patch("config.trap_brk", return_value=True)
 
     ins = Instruction(op=Operation.BRK, mode=AddressMode.Implicit)
     cpu.pc = 0xDEED
@@ -1739,7 +1737,6 @@ def test_brk_instruction(system: CPU, mocker: MockerFixture):
 
 def test_rti_instruction(system: CPU, mocker: MockerFixture):
     cpu = system
-    mocker.patch("config.trap_brk", return_value=True)
 
     ins = Instruction(op=Operation.RTI, mode=AddressMode.Implicit)
     cpu.pc = 0x0

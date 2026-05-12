@@ -1,0 +1,43 @@
+# Available configuration keys.
+# Not all of these are applicable to all targets and backends.
+#
+# system - emulated system
+# backend - ui backend
+# trap_brk - trap the BRK instruction in the emulator yes/no
+# tty - tty device for the terminal backend (uses the attached tty by default).
+# program - program binary to load into ram, path & load address sub keys are required. load area must mapped ram on the target system.
+# metrics - enable runtime performance metrics collection Yes/No
+# start_address - Initial program counter,
+# roms - an array of file paths and load addresses to load into the emulator, the load areas are automatically allocated as rom memory
+
+
+[default]
+metrics = false
+trap_brk = false
+system = "apple1"
+backend = "terminal"
+#[[roms]]
+#path = "bin/wozmon.bin"
+#load_address = 0xFF00
+#[[roms]]
+#path = "bin/basic.bin"
+#load_address = 0xE000
+
+
+[apple1]
+system = "apple1"
+backend = "tui"
+program = {load_address = 0x280, path = "bin/mandelbrot-65.bin"}
+[[apple1.roms]]
+path = "bin/wozmon.bin"
+load_address = 0xFF00
+[[apple1.roms]]
+path = "bin/basic.bin"
+load_address = 0xE000
+
+[headless]
+system = "headless"
+backend = "tui"
+metrics = true
+program = {load_address = 0x0, path = "bin/6502_functional_test.bin"}
+start_address = 0x400

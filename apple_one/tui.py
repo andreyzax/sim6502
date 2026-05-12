@@ -17,7 +17,6 @@ from textual.containers import Horizontal
 from textual.widgets import Static
 
 import apple_one.system as system
-import config
 from apple_one.api import DisplayBackend, KeyboardBackend
 from tui import ConsoleWidget, HelpBar, MemoryViewer
 
@@ -40,12 +39,12 @@ class UI(App):
 
         self._runtime = runtime
 
-        if config.enable_runtime_perf_metrics:
+        if self._runtime.system.collect_metrics:
             self._metrics_widget = Static(id="metrics")
         self._registers_widget = Static(id="registers")
         self._flags_widget = Static(id="flags")
         self._mempry_viewer = MemoryViewer(self._runtime.memory)
-        if config.enable_runtime_perf_metrics:
+        if self._runtime.system.collect_metrics:
             self._status_bar_widget = Horizontal(self._metrics_widget, self._registers_widget, self._flags_widget, id="status_bar")
         else:
             self._status_bar_widget = Horizontal(self._registers_widget, self._flags_widget, id="status_bar")
@@ -66,7 +65,7 @@ class UI(App):
 
     def _long_tick(self) -> None:
         self._mempry_viewer.refresh()
-        if config.enable_runtime_perf_metrics:
+        if self._runtime.system.collect_metrics:
             self._metrics_widget.update(str(self._runtime.metrics))
 
     def on_mount(self) -> None:
@@ -83,12 +82,12 @@ class UI(App):
 
     def action_metrics_toggle(self) -> None:
         """Toggle metrics widget display."""
-        if config.enable_runtime_perf_metrics:
+        if self._runtime.system.collect_metrics:
             self._metrics_widget.display = not self._metrics_widget.display
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Disable the metrics toggle command if metrics are disabled."""
-        return not (action == "metrics_toggle" and not config.enable_runtime_perf_metrics)
+        return not (action == "metrics_toggle" and not self._runtime.system.collect_metrics)
 
     def action_resume(self) -> None:
         """Resume the emulator."""

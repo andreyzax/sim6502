@@ -19,7 +19,6 @@ from dataclasses import dataclass
 from io import BufferedIOBase
 from typing import Callable
 
-import config
 from assembly import AddressMode, DecodingError, Instruction, Operation, isa
 from memory import ADDRESS_SPACE_SIZE, MemoryMap
 
@@ -197,7 +196,7 @@ class CPU:
 
         self.p.interrupt_disable = True
 
-        if config.trap_brk and b_field:
+        if self.trap_brk and b_field:
             raise CPUTrap(cpu=self)
 
         irq_vector_low = self.memory[vector & 0xFFFF]
@@ -619,7 +618,7 @@ class CPU:
         self.nmi = False
         self.cycles = 0
 
-    def __init__(self, memory: MemoryMap, pc: int = 0, s: int = 0xFF):
+    def __init__(self, memory: MemoryMap, pc: int = 0, s: int = 0xFF, trap_brk: bool = False):
         """Initialize the cpu state."""
         self._init_a = 0
         self._init_x = 0
@@ -633,6 +632,7 @@ class CPU:
         self.ci = Decoded_instruction(op=Operation.ADC, mode=AddressMode.Immediate, operand_field=0, operand=0, size=0)
         self.irq = False
         self.nmi = False
+        self.trap_brk = trap_brk
         self.reset()
 
         self._instruction_dispatch: list[Callable[[], None]] = [lambda: None] * len(Operation)

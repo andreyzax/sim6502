@@ -8,26 +8,29 @@ This assembles a simple apple 1 like system with wozmon, apple basic and a demo 
 from argparse import ArgumentParser
 
 import apple_one
-import config
 import headless
+from config import settings
 
 
 def process_arguments() -> None:
-    """Process command line arguments and set parameter values in config module."""
+    """Process command line arguments and set parameter values in settings object."""
     parser = ArgumentParser()
+    parser.add_argument("--profile", "-p", action="store", help="Select a settings profile from the settings file.")
     parser.add_argument("--metrics", "-m", action="store_true", help="Enable runtime metrics collection")
-    parser.add_argument("--trap-on-brk", "-tb", action="store_true", help="Raise (emulator) exception and break out of run loop on BRK instructions")
-    parser.add_argument("--backend", "-b", action="store", default="terminal", help="UI backend")
-    parser.add_argument("--system", "-s", action="store", default="apple1", help="Emulation target")
+    parser.add_argument("--trap-brk", "-tb", action="store_true", help="Raise (emulator) exception and break out of run loop on BRK instructions")
+    parser.add_argument("--backend", "-b", action="store", default=None, help="UI backend")
+    parser.add_argument("--system", "-s", action="store", default=None, help="Emulation target")
     parser.add_argument("--tty", "-t", action="store", default=None, help="tty device for the terminal backend")
 
     args = parser.parse_args()
-    config.enable_runtime_perf_metrics = args.metrics
-    config.trap_brk = args.trap_on_brk
-    config.target = args.system
-    config.backend = args.backend
-    if config.backend == "terminal":  # We only support alternative tty devices with the "terminal" backend
-        config.terminal_device = args.tty
+    args_dict = vars(args)
+
+    if args.profile:
+        settings.setenv(args.profile)
+
+    for arg in ("metrics", "trap_brk", "system", "backend", "tty"):
+        if args_dict[arg]:
+            settings[arg] = args_dict[arg]
 
 
 def main() -> None:
@@ -38,20 +41,20 @@ def main() -> None:
     """
     process_arguments()
 
-    if config.target == "apple1":
-        if config.backend == "terminal":
-            runtime = apple_one.TerminalRuntime()
-        elif config.backend == "tui":
-            runtime = apple_one.TuiRuntime()
+    if settings.system == "apple1":
+        if settings.backend == "terminal":
+            runtime = apple_one.TerminalRuntime(settings)
+        elif settings.backend == "tui":
+            runtime = apple_one.TuiRuntime(settings)
         else:
-            raise RuntimeError(f"Backend ({config.backend}) is not supported.")
-    elif config.target == "headless":
-        if config.backend == "tui":
-            runtime = headless.TuiRuntime(getattr(config, "start_pc", None))
+            raise RuntimeError(f"Backend ({settings.backend}) is not supported.")
+    elif settings.system == "headless":
+        if settings.backend == "tui":
+            runtime = headless.TuiRuntime(settings.start_address)
         else:
-            raise RuntimeError(f"Backend ({config.backend}) is not supported.")
+            raise RuntimeError(f"Backend ({settings.backend}) is not supported.")
     else:
-        raise RuntimeError(f"System ({config.target}) is not supported.")
+        raise RuntimeError(f"System ({settings.system}) is not supported.")
 
     runtime.run()
 

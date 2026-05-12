@@ -12,9 +12,10 @@ Classes:
 import itertools
 import time
 
+from dynaconf import Dynaconf
+
 import apple_one.terminal as terminal
 import apple_one.tui as tui
-import config
 from apple_one.api import DisplayBackend, KeyboardBackend
 from apple_one.devices import Keyboard, Video
 from cpu import CPU, CPUTrap
@@ -29,21 +30,23 @@ class AppleOne(System):
     Assembles and wires up the system and owns the system's component objects. Exposes runtime api to control emulator execution.
     """
 
-    def __init__(self, display_backend: DisplayBackend, keyboard_backend: KeyboardBackend):
+    def __init__(self, display_backend: DisplayBackend, keyboard_backend: KeyboardBackend, config: Dynaconf):
         """Consumes keyboard and display backend objects and initializes the internal state of the emulator."""
         self.video = Video(backend=display_backend)
         self.keyboard = Keyboard(backend=keyboard_backend)
 
-        roms = (RomSegment.from_binary_file(base_address=rom[0], path=rom[1]) for rom in config.roms)
+        roms = (RomSegment.from_binary_file(base_address=rom.load_address, path=rom.path) for rom in config.get("roms", []))
         self._memory = MemoryMap(RamSegment(0, 0x7FFF), self.video, self.keyboard, *roms)
 
         reset_addr = self._memory[0xFFFD] << 8 | self._memory[0xFFFC]
-        self._cpu = CPU(memory=self._memory, pc=reset_addr)
+        self._cpu = CPU(memory=self._memory, pc=reset_addr, trap_brk=config.get("trap_brk", False))
         self.keyboard.on_reset = self._cpu.reset
 
-        if config.program is not None:
-            with open(config.program[1], "rb") as f:
-                self.cpu.load(config.program[0], f)
+        self.collect_metrics: bool = config.get("metrics", False)
+
+        if config.get("program", None) is not None:
+            with open(config.program.path, "rb") as f:
+                self.cpu.load(config.program.load_address, f)
 
     def step(self, poll_hardware: bool = False) -> int:
         """Execute a single instruction, optionally poll the hardware for pending input."""
@@ -64,7 +67,7 @@ class AppleOne(System):
         ins_cycles = 0
         try:
             for i in counter:
-                if config.enable_runtime_perf_metrics:
+                if self.collect_metrics:
                     start = time.perf_counter_ns()
 
                 ins_cycles = self.step()
@@ -74,12 +77,12 @@ class AppleOne(System):
                         device.tick(tick_cycles)
                     tick_cycles = 0
 
-                if config.enable_runtime_perf_metrics:
+                if self.collect_metrics:
                     runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable ]
                     run_cycles += ins_cycles
 
         except KeyboardInterrupt:
-            if config.enable_runtime_perf_metrics:
+            if self.collect_metrics:
                 instructions = next(counter)
                 ips = round(instructions / (runtime / 10**9))
                 avg_ins_time = runtime / instructions / 1000  # Show in microseconds
@@ -100,7 +103,7 @@ class AppleOne(System):
         tick_cycles = 0
         ins_cycles = 0
         for i in range(0, upto):
-            if config.enable_runtime_perf_metrics:
+            if self.collect_metrics:
                 start = time.perf_counter_ns()
 
             ins_cycles = self.step()
@@ -110,11 +113,11 @@ class AppleOne(System):
                     device.tick(tick_cycles)
                 tick_cycles = 0
 
-            if config.enable_runtime_perf_metrics:
+            if self.collect_metrics:
                 runtime = runtime + (time.perf_counter_ns() - start)  # pyright: ignore [ reportPossiblyUnboundVariable
                 run_cycles += ins_cycles
 
-        if config.enable_runtime_perf_metrics:
+        if self.collect_metrics:
             if i == 0:
                 return Metrics(runtime=0, instructions=0, ips=0, cycles=0, avg_ins_time=0)
 
@@ -139,18 +142,18 @@ class AppleOne(System):
 class TerminalRuntime(Runtime):
     """Terminal backed runtime class."""
 
-    def __init__(self):
+    def __init__(self, config: Dynaconf):
         """Create a terminal backed runtime."""
-        if config.terminal_device:
-            device = open(config.terminal_device, "r+b", buffering=0)  # noqa: SIM115
+        if config.get("tty", None):
+            device = open(config.tty, "r+b", buffering=0)  # noqa: SIM115
             terminal.init_backend(device)
         else:
             terminal.init_backend()
 
-        self.system = AppleOne(display_backend=terminal.TerminalDisplayBackend(), keyboard_backend=terminal.TerminalKeyboardBackend())
+        self.system = AppleOne(display_backend=terminal.TerminalDisplayBackend(), keyboard_backend=terminal.TerminalKeyboardBackend(), config=config)
 
     def _trap_handler(self, cpu: CPU) -> None:
-        """Handle cpu traps, currently only gets triggered if `config.trap_brk` is true."""
+        """Handle cpu traps, currently only gets triggered if `settings.trap_brk` is true."""
         # flags = ("#" if flag else " " for flag in (cpu.p.negative, cpu.p.overflow, True, True, cpu.p.decimal, cpu.p.interrupt_disable, cpu.p.zero, cpu.p.carry))
         # flags_str = "".join(flags)
         print(f"""\nExecution stopped:
@@ -206,10 +209,10 @@ class TerminalRuntime(Runtime):
 class TuiRuntime(Runtime):
     """Terminal backed runtime class."""
 
-    def __init__(self) -> None:
+    def __init__(self, config: Dynaconf) -> None:
         """Create a tui backed runtime."""
         self.console = tui.ConsoleWidget(id="console")
-        self.system = AppleOne(display_backend=tui.TuiDisplayBackend(self.console), keyboard_backend=tui.TuiKeyboardBackend(self.console))
+        self.system = AppleOne(display_backend=tui.TuiDisplayBackend(self.console), keyboard_backend=tui.TuiKeyboardBackend(self.console), config=config)
         self.ui = tui.UI(self)
         self._runnable = False
         self._metrics: Metrics | None = None
